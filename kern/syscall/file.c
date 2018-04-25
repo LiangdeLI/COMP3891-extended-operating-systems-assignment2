@@ -43,14 +43,16 @@ void init_of(void){
 	return;
 }
 
+//System open implementation
 int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t retVal){
-	
-	int fd = 3;
+		
 	int res;
+	int fd = 3;
 	//if the file is NULL, there is no such file.
 	if(file == NULL){
 		return ENOENT;
 	}
+
 
 	curthread->t_fdtable[fd] = kmalloc(sizeof(struct fdesc));
 	
@@ -59,12 +61,24 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t retVal){
 		return EFAULT;
 	}
 	
+	//Find available place in file descriptor table		
+	while(curthread->t_fdtable[fd] != NULL){
+		fd++;
+		if(fd >= OPENMAX){
+			return ENFILE;		
+		}
+	}
+
+
 	struct vnode* vNode = NULL;
+
+	
 	
 	// try to call vfs_open to open the file
 	if (res = vfs_open((char*) file, flag, mode, &v)){
 		return res
 	}
+
 
 	return 0;
 }
