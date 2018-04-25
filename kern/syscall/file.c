@@ -23,6 +23,26 @@
 
 //Add************************** The below code part still not work yet...
 //int open(const char *filename, int flags, ...);
+
+
+// Initialize the file descriptor table
+void init_fd(void){
+
+
+}
+
+// Initialize the open file table
+void init_of(void){
+	for(int i = 0;i < OPEN_MAX; i++){
+		ofTable[i].vNode = NULL;
+		ofTable[i].offset = 0;
+		ofTable[i].flags = 0;
+		ofTable[i].refCount = 0;
+		ofTable[i].filelock = lock_creat("of_table_lock");	
+	}
+	return;
+}
+
 int s_open(const_userptr_t file, int flag, mode_t mode, int32_t retVal){
 	
 	int fd = 3;
@@ -39,7 +59,7 @@ int s_open(const_userptr_t file, int flag, mode_t mode, int32_t retVal){
 		return EFAULT;
 	}
 	
-	struct vnode* v = NULL;
+	struct vnode* vNode = NULL;
 	
 	// try to call vfs_open to open the file
 	if (res = vfs_open((char*) file, flag, mode, &v)){
