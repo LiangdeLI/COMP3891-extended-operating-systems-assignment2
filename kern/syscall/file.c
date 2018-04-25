@@ -43,7 +43,7 @@ void init_of(void){
 	return;
 }
 
-int s_open(const_userptr_t file, int flag, mode_t mode, int32_t retVal){
+int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t retVal){
 	
 	int fd = 3;
 	int res;
