@@ -15,13 +15,11 @@
  * Put your function declarations and data types here ...
  */
 
-struct of ofTable[OPEN_MAX];
-
 struct fd_table {
   struct of * ofnode;
 };
 
-struct openFile {
+struct openfile_table {
   //char * filename;
   int flags;
   off_t offset;
@@ -30,10 +28,6 @@ struct openFile {
   struct vnode * vNode;
 };
 
-void init_fd(void);
-void init_of(void);
-int sys_open(const_userptr_t filename, int flags, mode_t mode, int32_t * retval);
-
-
+struct of oftable[OPEN_MAX];
 
 #endif /* _FILE_H_ */

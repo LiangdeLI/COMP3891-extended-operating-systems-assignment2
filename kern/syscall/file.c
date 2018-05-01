@@ -27,11 +27,46 @@
 
 // Initialize the file descriptor table
 void init_fd(void){
+	struct vnode *v1 = NULL;
+	stryct *v2 = NULL;
+
+	curthread->fdesc[1] = kmalloc(sizeof(struct fd_table));
+	curthread->fdesc[2] = kmalloc(sizeof(struct fd_table));
+
+	char c1[] = "con:";
+	char c2[] = "con:";
+
+	vfs_open(c1,O_RDONLY,0,&v1); 
+	vfs_open(c2,O_RDONLY,0,&v2); 
+
+	//con = kstrdup("con:");
+	//vfs_open(con, O_RDONLY, 0, &vnout);
+	//con = kstrdup("con:");
+	//vfs_open(con, O_RDONLY, 0, &vnout);
+
+	curthread->fdesc[1]->ofnode = kmalloc(sizeof(struct openFile));
+ 	KASSERT(curthread->fdesc[1]->ofnode != NULL);
+ 	curthread->fdesc[2]->ofnode = kmalloc(sizeof(struct openFile));
+ 	KASSERT(curthread->fdesc[2]->ofnode != NULL);
+
+ 	curthread->fdesc[1]->ofnode->vNode = vnout;
+	curthread->fdesc[1]->ofnode->offset = 0;
+ 	curthread->fdesc[1]->ofnode->flags = O_WRONLY;
+ 	curthread->fdesc[1]->ofnode->refCount = 1;
+ 	curthread->fdesc[1]->ofnode->filelock = lock_create("stdout_lock");
+
+ 	curthread->fdesc[2]->ofnode->vNode = vnerr;
+	curthread->fdesc[2]->ofnode->offset = 0;
+ 	curthread->fdesc[2]->ofnode->flags = O_WRONLY;
+ 	curthread->fdesc[2]->ofnode->refCount = 1;
+ 	curthread->fdesc[2]->ofnode->filelock = lock_create("stderr_lock");
+
+ 	return;
 
 
 }
 
-// Initialize the open file table
+// Initialize the open file table (Although I am not sure we need open file table but just leave here first)
 void init_of(void){
 	for(int i = 0;i < OPEN_MAX; i++){
 		ofTable[i].vNode = NULL;
@@ -54,15 +89,15 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t retVal){
 	}
 
 
-	curthread->t_fdtable[fd] = kmalloc(sizeof(struct fdesc));
+	curthread->fdesc[fd] = kmalloc(sizeof(struct fdesc));
 	
 	//if the file decriptor table is null, it means: "Bad memory reference"?
-	if(curthread->t_fdtable[fd] == NULL){
+	if(curthread->fdesc[fd] == NULL){
 		return EFAULT;
 	}
 	
 	//Find available place in file descriptor table		
-	while(curthread->t_fdtable[fd] != NULL){
+	while(curthread->fdesc[fd] != NULL){
 		fd++;
 		if(fd >= OPENMAX){
 			return ENFILE;		
