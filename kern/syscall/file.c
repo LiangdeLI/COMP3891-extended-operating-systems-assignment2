@@ -26,7 +26,7 @@
 
 
 // Initialize the file descriptor table
-void init_fd(void){
+void init_fdesc(void){
 	struct vnode *v1 = NULL;
 	stryct *v2 = NULL;
 
@@ -49,13 +49,13 @@ void init_fd(void){
  	curthread->fdesc[2]->ofnode = kmalloc(sizeof(struct openFile));
  	KASSERT(curthread->fdesc[2]->ofnode != NULL);
 
- 	curthread->fdesc[1]->ofnode->vNode = vnout;
+ 	curthread->fdesc[1]->ofnode->vNode = v1;
 	curthread->fdesc[1]->ofnode->offset = 0;
  	curthread->fdesc[1]->ofnode->flags = O_WRONLY;
  	curthread->fdesc[1]->ofnode->refCount = 1;
  	curthread->fdesc[1]->ofnode->filelock = lock_create("stdout_lock");
 
- 	curthread->fdesc[2]->ofnode->vNode = vnerr;
+ 	curthread->fdesc[2]->ofnode->vNode = v2;
 	curthread->fdesc[2]->ofnode->offset = 0;
  	curthread->fdesc[2]->ofnode->flags = O_WRONLY;
  	curthread->fdesc[2]->ofnode->refCount = 1;
@@ -87,14 +87,6 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t retVal){
 	if(file == NULL){
 		return ENOENT;
 	}
-
-
-	curthread->fdesc[fd] = kmalloc(sizeof(struct fdesc));
-	
-	//if the file decriptor table is null, it means: "Bad memory reference"?
-	if(curthread->fdesc[fd] == NULL){
-		return EFAULT;
-	}
 	
 	//Find available place in file descriptor table		
 	while(curthread->fdesc[fd] != NULL){
@@ -102,6 +94,20 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t retVal){
 		if(fd >= OPENMAX){
 			return ENFILE;		
 		}
+	}
+
+	curthread->fdesc[fd] = kmalloc(sizeof(struct fd_table));
+
+	//if the file decriptor table is null, it means: "Bad memory reference"?
+	if(curthread->fdesc[fd] == NULL){
+		return EFAULT;
+	}
+
+	
+	//curthread->t_fdesc[fd] = kmalloc(sizeof(struct fd_table));
+
+	if(curthread->t_fdtable[fd] == NULL){
+		return EFAULT;
 	}
 
 

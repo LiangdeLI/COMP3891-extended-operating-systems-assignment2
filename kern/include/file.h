@@ -30,7 +30,7 @@ struct openFile {
   struct vnode * vNode;
 };
 
-void init_fd(void);
+void init_fdesc(void);
 void init_of(void);
 int sys_open(const_userptr_t filename, int flags, mode_t mode, int32_t * retval);
 

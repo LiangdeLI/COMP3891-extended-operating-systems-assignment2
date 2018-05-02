@@ -19,7 +19,7 @@ struct fd_table {
   struct of * ofnode;
 };
 
-struct openfile_table {
+struct openFile {
   //char * filename;
   int flags;
   off_t offset;
@@ -28,6 +28,6 @@ struct openfile_table {
   struct vnode * vNode;
 };
 
-struct of oftable[OPEN_MAX];
+struct of ofTable[OPEN_MAX];
 
-#endif /* _FILE_H_ */
+#endif /* _FLE_H_ */
