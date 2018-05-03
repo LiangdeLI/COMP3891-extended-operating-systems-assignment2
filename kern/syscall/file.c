@@ -141,16 +141,35 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t retVal){
 }
 
 
-int sys_close(int index, int32_t * retval) {
+int sys_close(int handle, int32_t * retval) {
 	
+	struct of * curr_ofn = curthread->fdesc[handle]->ofnode;
 
-	if(ofn->refcount == 0) {
-		vfs_close(ofn->vn);
-		ofn->flags = 0;
-		ofn->offset = 0;
-		ofn->vn = NULL;
+
+	if(curr_ofn->refcount == 0 || curr_ofn->vn == NULL){
+		return EBADF;
 	}
+		
+	//free the file descriptor 
+	kfree(curthread->fdesc[filehandle]);
+	curthread->fdesc[filehandle] = NULL;
+	
+	//Acquire lock
+	lock_acquire(oftable[handle].filelock);
+	curr_ofn->refCount--;
 
+	if(curr_ofn->refCount == 0) {
+		curr_ofn->flags = 0;
+		curr_ofn->offset = 0;
+		vfs_close(curr_ofn->vNode);
+		curr_ofn->vNode = NULL;
+	}
+	
+	//Release lock
+	lock_release(ofTable[handle].filelock);
+
+	*retval = 0;
+	return 0;
 }
 
 

@@ -33,6 +33,7 @@ struct openFile {
 void init_fdesc(void);
 void init_of(void);
 int sys_open(const_userptr_t filename, int flags, mode_t mode, int32_t * retval);
+int sys_close(int handle, int32_t * retval);
 
 
 
