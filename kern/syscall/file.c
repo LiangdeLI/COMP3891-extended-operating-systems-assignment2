@@ -83,13 +83,16 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t retVal){
 		
 	int res;
 	int fd = 3;
+	struct vnode* vNode = NULL;
+
+
 	//if the file is NULL, there is no such file.
 	if(file == NULL){
 		return ENOENT;
 	}
 	
 	//Find available place in file descriptor table		
-	while(curthread->fdesc[fd] != NULL){
+	for(fd = 3; curthread->fdesc[fd] != NULL; fd++){
 		fd++;
 		if(fd >= OPENMAX){
 			return ENFILE;		
@@ -106,22 +109,48 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t retVal){
 	
 	//curthread->t_fdesc[fd] = kmalloc(sizeof(struct fd_table));
 
-	if(curthread->t_fdtable[fd] == NULL){
-		return EFAULT;
+	
+	//Find available place in open file table
+	for(i=0;ofTable[i].vNode != NULL;i++){
+		if(i >= OPEN_MAX) {
+			return ENFILE;
+		}
 	}
 
 
-	struct vnode* vNode = NULL;
+	
 
-	
-	
 	// try to call vfs_open to open the file
-	if (res = vfs_open((char*) file, flag, mode, &v)){
+	if (res = vfs_open((char*) file, flag, mode, &vNode)){
 		return res
 	}
 
+	//Update the information in the open file node
+	ofTable[i].offset = 0;
+	ofTable[i].refCount++;	
+	ofTable[i].flags = flags;
+	ofTable[i].vNode = vNode;
+	//ofTable[i].refcount++;
+
+	//Connect the file descriptor to open_file_node
+	curthread->fdesc[fd]->ofnode = &ofTable[i];
+	*retval = fd;
+
 
 	return 0;
+}
+
+
+int sys_close(int index, int32_t * retval) {
+	
+
+	if(ofn->refcount == 0) {
+		vfs_close(ofn->vn);
+		ofn->flags = 0;
+		ofn->offset = 0;
+		ofn->vn = NULL;
+	}
+
 }
 
 
