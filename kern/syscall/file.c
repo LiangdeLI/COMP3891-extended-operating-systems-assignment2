@@ -28,7 +28,7 @@
 // Initialize the file descriptor table
 void init_fdesc(void){
 	struct vnode *v1 = NULL;
-	stryct *v2 = NULL;
+	struct vnode *v2 = NULL;
 
 	curthread->fdesc[1] = kmalloc(sizeof(struct fd_table));
 	curthread->fdesc[2] = kmalloc(sizeof(struct fd_table));
@@ -65,7 +65,7 @@ void init_fdesc(void){
 
 
 }
-
+/*
 // Initialize the open file table (Although I am not sure we need open file table but just leave here first)
 void init_of(void){
 	for(int i = 0;i < OPEN_MAX; i++){
@@ -77,12 +77,14 @@ void init_of(void){
 	}
 	return;
 }
+*/
 
 //System open implementation
 int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t retVal){
 		
 	int res;
 	int fd = 3;
+	int i;
 	struct vnode* vNode = NULL;
 
 
@@ -122,31 +124,31 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t retVal){
 
 	// try to call vfs_open to open the file
 	if (res = vfs_open((char*) file, flag, mode, &vNode)){
-		return res
+		return res;
 	}
 
 	//Update the information in the open file node
 	ofTable[i].offset = 0;
 	ofTable[i].refCount++;	
-	ofTable[i].flags = flags;
+	ofTable[i].flags = flag;
 	ofTable[i].vNode = vNode;
 	//ofTable[i].refcount++;
 
 	//Connect the file descriptor to open_file_node
 	curthread->fdesc[fd]->fnode = &ofTable[i];
-	*retval = fd;
+	*retVal = fd;
 
 
 	return 0;
 }
 
 //System close implementation
-int sys_close(int handle, int32_t * retval) {
+int sys_close(int handle, int32_t * retVal) {
 	
 	struct openFile* curr_ofn = curthread->fdesc[handle]->fnode;
 
 
-	if(curr_ofn->refcount == 0 || curr_ofn->vn == NULL){
+	if(curr_ofn->refcount == 0 || curr_ofn->vNode == NULL){
 		return EBADF;
 	}
 		
@@ -168,12 +170,12 @@ int sys_close(int handle, int32_t * retval) {
 	//Release lock
 	lock_release(ofTable[handle].filelock);
 
-	*retval = 0;
+	*retVal = 0;
 	return 0;
 }
 
 //System read implementation
-int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
+int sys_read(int handle, void * buf, size_t len, int32_t * retVal) {
 
 	int res;
 	struct uio u;
@@ -199,15 +201,15 @@ int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
 
 
 	//Called the VOP_READ function
-	if(res = VOP_READ(curr_ofn->vNode, &fvec)) {
+	if(res = VOP_READ(curr_ofn->vNode, &u)) {
 		//kfree(kbuf);
-		lock_release(oftable[handle].filelock);
-		*retval = -1;
+		lock_release(ofTable[handle].filelock);
+		*retVal = -1;
 		return res;
 	}else{
-		currofn->offset = u.uio_offset;
+		curr_ofn->offset = u.uio_offset;
 		lock_release(ofTable[handle].filelock);
-		*retval = len - u.uio_resid;
+		*retVal = len - u.uio_resid;
 		//kfree(kbuf);
 		return 0;
 
@@ -215,7 +217,7 @@ int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
 }
 
 //System write implementation
-int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
+int sys_write(int handle, void * buf, size_t len, int32_t * retVal) {
 
 	int res;
 	struct uio u;
@@ -240,15 +242,15 @@ int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
 
 
 	
-	if(res = VOP_WRITE(curr_ofn->vNode, &kio)) {
+	if(res = VOP_WRITE(curr_ofn->vNode, &u)) {
 		//kfree(kbuf);
 		lock_release(ofTable[handle].filelock);
-		* retval = -1;
+		* retVal = -1;
 		return res;
 	}else{
 		curr_ofn->offset = u.uio_offset;
 		lock_release(ofTable[handle].filelock);
-		*retval = len - u.uio_resid;
+		*retVal = len - u.uio_resid;
 		//kfree(kbuf);
 		return 0;
 		
