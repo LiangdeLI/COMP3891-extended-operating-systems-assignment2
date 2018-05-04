@@ -35,10 +35,11 @@
  *
  * Note: curthread is defined by <current.h>.
  */
-
+#include <file.h>
 #include <array.h>
 #include <spinlock.h>
 #include <threadlist.h>
+
 
 struct cpu;
 
@@ -107,6 +108,8 @@ struct thread {
 	 */
 
 	/* add more here as needed */
+	struct fd_table* fdesc[OPEN_MAX];
+	struct addrspace* t_addrspace;		
 };
 
 /*
