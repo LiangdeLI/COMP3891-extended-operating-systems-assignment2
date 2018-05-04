@@ -44,22 +44,22 @@ void init_fdesc(void){
 	//con = kstrdup("con:");
 	//vfs_open(con, O_RDONLY, 0, &vnout);
 
-	curthread->fdesc[1]->ofnode = kmalloc(sizeof(struct openFile));
- 	KASSERT(curthread->fdesc[1]->ofnode != NULL);
- 	curthread->fdesc[2]->ofnode = kmalloc(sizeof(struct openFile));
- 	KASSERT(curthread->fdesc[2]->ofnode != NULL);
+	curthread->fdesc[1]->fnode = kmalloc(sizeof(struct openFile));
+ 	KASSERT(curthread->fdesc[1]->fnode != NULL);
+ 	curthread->fdesc[2]->fnode = kmalloc(sizeof(struct openFile));
+ 	KASSERT(curthread->fdesc[2]->fnode != NULL);
 
- 	curthread->fdesc[1]->ofnode->vNode = v1;
-	curthread->fdesc[1]->ofnode->offset = 0;
- 	curthread->fdesc[1]->ofnode->flags = O_WRONLY;
- 	curthread->fdesc[1]->ofnode->refCount = 1;
- 	curthread->fdesc[1]->ofnode->filelock = lock_create("stdout_lock");
+ 	curthread->fdesc[1]->fnode->vNode = v1;
+	curthread->fdesc[1]->fnode->offset = 0;
+ 	curthread->fdesc[1]->fnode->flags = O_WRONLY;
+ 	curthread->fdesc[1]->fnode->refCount = 1;
+ 	curthread->fdesc[1]->fnode->filelock = lock_create("stdout_lock");
 
- 	curthread->fdesc[2]->ofnode->vNode = v2;
-	curthread->fdesc[2]->ofnode->offset = 0;
- 	curthread->fdesc[2]->ofnode->flags = O_WRONLY;
- 	curthread->fdesc[2]->ofnode->refCount = 1;
- 	curthread->fdesc[2]->ofnode->filelock = lock_create("stderr_lock");
+ 	curthread->fdesc[2]->fnode->vNode = v2;
+	curthread->fdesc[2]->fnode->offset = 0;
+ 	curthread->fdesc[2]->fnode->flags = O_WRONLY;
+ 	curthread->fdesc[2]->fnode->refCount = 1;
+ 	curthread->fdesc[2]->fnode->filelock = lock_create("stderr_lock");
 
  	return;
 
@@ -133,17 +133,17 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t retVal){
 	//ofTable[i].refcount++;
 
 	//Connect the file descriptor to open_file_node
-	curthread->fdesc[fd]->ofnode = &ofTable[i];
+	curthread->fdesc[fd]->fnode = &ofTable[i];
 	*retval = fd;
 
 
 	return 0;
 }
 
-
+//System close implementation
 int sys_close(int handle, int32_t * retval) {
 	
-	struct of * curr_ofn = curthread->fdesc[handle]->ofnode;
+	struct openFile* curr_ofn = curthread->fdesc[handle]->fnode;
 
 
 	if(curr_ofn->refcount == 0 || curr_ofn->vn == NULL){
@@ -151,11 +151,11 @@ int sys_close(int handle, int32_t * retval) {
 	}
 		
 	//free the file descriptor 
-	kfree(curthread->fdesc[filehandle]);
-	curthread->fdesc[filehandle] = NULL;
+	kfree(curthread->fdesc[handle]);
+	curthread->fdesc[handle] = NULL;
 	
 	//Acquire lock
-	lock_acquire(oftable[handle].filelock);
+	lock_acquire(ofTable[handle].filelock);
 	curr_ofn->refCount--;
 
 	if(curr_ofn->refCount == 0) {
@@ -171,6 +171,91 @@ int sys_close(int handle, int32_t * retval) {
 	*retval = 0;
 	return 0;
 }
+
+//System read implementation
+int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
+
+	int res;
+	struct uio u;
+	struct iovec iov;
+	
+
+	//Get the open file node
+	struct openFile* curr_ofn = curthread->fdesc[handle]->fnode;
+
+
+	//Configuration
+	iov.iov_ubase = (userptr_t)buf;
+	iov.iov_len = len;
+
+	lock_acquire(ofTable[handle].filelock);
+	u.uio_iov = &iov;
+	u.uio_iovcnt = 1;
+	u.uio_offset = curr_ofn->offset;
+	u.uio_resid = len;
+	u.uio_segflg = UIO_USERSPACE;
+	u.uio_rw = UIO_READ;
+	u.uio_space = curthread->t_addrspace;
+
+
+	//Called the VOP_READ function
+	if(res = VOP_READ(curr_ofn->vNode, &fvec)) {
+		//kfree(kbuf);
+		lock_release(oftable[handle].filelock);
+		*retval = -1;
+		return res;
+	}else{
+		currofn->offset = u.uio_offset;
+		lock_release(ofTable[handle].filelock);
+		*retval = len - u.uio_resid;
+		//kfree(kbuf);
+		return 0;
+
+	}
+}
+
+//System write implementation
+int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
+
+	int res;
+	struct uio u;
+	struct iovec iov;
+
+	//Get the open file node
+	struct openFile* curr_ofn = curthread->fdesc[handle]->fnode;
+
+	//Configuration
+	iov.iov_ubase = (userptr_t)buf;
+	iov.iov_len = len;
+
+	lock_acquire(ofTable[handle].filelock);
+	u.uio_iov = &iov;
+	u.uio_iovcnt = 1;
+	u.uio_offset = curr_ofn->offset;
+	u.uio_resid = len;
+	u.uio_segflg = UIO_USERSPACE;
+	u.uio_rw = UIO_READ;
+	u.uio_space = curthread->t_addrspace;
+
+
+
+	
+	if(res = VOP_WRITE(curr_ofn->vNode, &kio)) {
+		//kfree(kbuf);
+		lock_release(ofTable[handle].filelock);
+		* retval = -1;
+		return res;
+	}else{
+		curr_ofn->offset = u.uio_offset;
+		lock_release(ofTable[handle].filelock);
+		*retval = len - u.uio_resid;
+		//kfree(kbuf);
+		return 0;
+		
+	}
+}
+
+
 
 
 

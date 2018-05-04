@@ -18,7 +18,7 @@
 struct of ofTable[OPEN_MAX];
 
 struct fd_table {
-  struct of * ofnode;
+  struct of * fnode;
 };
 
 struct openFile {
