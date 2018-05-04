@@ -75,6 +75,13 @@ runprogram(char *progname)
 		return ENOMEM;
 	}
 
+	//Add
+	if(curthread->fdesc[0] == NULL){
+		init_fdesc();
+	
+	}
+	//
+
 	/* Switch to it and activate it. */
 	proc_setas(as);
 	as_activate();
