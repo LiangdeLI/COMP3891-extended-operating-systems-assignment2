@@ -136,6 +136,7 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval){
 	ofTable[i].refCount++;	
 	ofTable[i].flags = flag;
 	ofTable[i].vNode = vNode;
+	ofTable[i].filelock = lock_create("alock");
 	//ofTable[i].refcount++;
 
 	//Connect the file descriptor to open_file_node
@@ -232,7 +233,7 @@ int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
 	if(handle < 0 || handle >= OPEN_MAX || curthread->fdesc[handle] == NULL){
 		return ENFILE;	
 	}
-
+	
 
 	int res;
 	struct uio u;
@@ -241,24 +242,30 @@ int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
 	//Get the open file node
 	struct openFile* curr_ofn = curthread->fdesc[handle]->fnode;
 
+	
 	//
 	void* kbuf = kmalloc(sizeof(*buf) * len);
 	if(kbuf == NULL) return EFAULT;
 	copyin((const_userptr_t) buf, kbuf, len);
 	//
-
+	
 
 	//Configuration
 	iov.iov_ubase = (userptr_t)buf;
 	iov.iov_len = len;
 
+	// if(handle!=1 && handle!=2) kprintf("here1\n");
 	lock_acquire(curthread->fdesc[handle]->fnode->filelock);
+	// if(handle!=1 && handle!=2) kprintf("here2\n");
 	u.uio_iov = &iov;
+
 	u.uio_iovcnt = 1;
 	u.uio_offset = curr_ofn->offset;
+
 	u.uio_resid = len;
 	u.uio_segflg = UIO_USERSPACE;
 	u.uio_rw = UIO_WRITE;
+
 	//u.uio_space = curthread->t_addrspace;
 	u.uio_space = proc_getas();
 
@@ -267,6 +274,7 @@ int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
 	
 	//if(res = VOP_WRITE(curr_ofn->vNode, &u)) {
 	res = VOP_WRITE(curr_ofn->vNode, &u);
+	// if(handle!=1 && handle!=2) kprintf("here3\n");
 	if(res) {
 		kfree(kbuf);
 		lock_release(curthread->fdesc[handle]->fnode->filelock);
