@@ -34,15 +34,15 @@ struct openFile ofTable[OPEN_MAX];
 
 void init_fdesc(void);
 void init_of(void);
-//int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval);
-int sys_open(const_userptr_t file, int flag, mode_t mode);
-//int sys_close(int handle, int32_t * retval);
-int sys_close(int handle);
-//int sys_read(int handle, void * buf, size_t len, int32_t * retval);
-//int sys_write(int handle, void * buf, size_t len, int32_t * retval);
+int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval);
+//int sys_open(const_userptr_t file, int flag, mode_t mode);
+int sys_close(int handle, int32_t * retval);
+//int sys_close(int handle);
+int sys_read(int handle, void * buf, size_t len, int32_t * retval);
+int sys_write(int handle, void * buf, size_t len, int32_t * retval);
 
-int sys_read(int handle, void * buf, size_t len);
-int sys_write(int handle, void * buf, size_t len);
+//int sys_read(int handle, void * buf, size_t len);
+//int sys_write(int handle, void * buf, size_t len);
 
 
 
