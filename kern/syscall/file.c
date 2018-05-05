@@ -259,8 +259,8 @@ int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
 	u.uio_resid = len;
 	u.uio_segflg = UIO_USERSPACE;
 	u.uio_rw = UIO_WRITE;
-	u.uio_space = curthread->t_addrspace;
-	//u.uio_space = proc_getas();
+	//u.uio_space = curthread->t_addrspace;
+	u.uio_space = proc_getas();
 
 
 
