@@ -81,8 +81,8 @@ void init_of(void){
 */
 
 //System open implementation
-//int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retVal){
-int sys_open(const_userptr_t file, int flag, mode_t mode){
+int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval){
+//int sys_open(const_userptr_t file, int flag, mode_t mode){
 		
 	int res;
 	int fd = 3;
@@ -140,15 +140,15 @@ int sys_open(const_userptr_t file, int flag, mode_t mode){
 
 	//Connect the file descriptor to open_file_node
 	curthread->fdesc[fd]->fnode = &ofTable[i];
-	//*retVal = fd;
+	*retval = fd;
 
 
 	return 0;
 }
 
 //System close implementation
-//int sys_close(int handle, int32_t * retVal) {
-int sys_close(int handle) {
+int sys_close(int handle, int32_t * retval) {
+//int sys_close(int handle) {
 	
 	struct openFile* curr_ofn = curthread->fdesc[handle]->fnode;
 
@@ -175,13 +175,13 @@ int sys_close(int handle) {
 	//Release lock
 	lock_release(ofTable[handle].filelock);
 
-	//*retVal = 0;
+	*retval = 0;
 	return 0;
 }
 
 //System read implementation
-//int sys_read(int handle, void * buf, size_t len, int32_t * retVal) {
-int sys_read(int handle, void * buf, size_t len) {
+int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
+//int sys_read(int handle, void * buf, size_t len) {
 
 	int res;
 	struct uio u;
@@ -213,12 +213,12 @@ int sys_read(int handle, void * buf, size_t len) {
 	if(res) {
 		//kfree(kbuf);
 		lock_release(ofTable[handle].filelock);
-		//*retVal = -1;
+		*retval = -1;
 		return res;
 	}else{
 		curr_ofn->offset = u.uio_offset;
 		lock_release(ofTable[handle].filelock);
-		//*retVal = len - u.uio_resid;
+		*retval = len - u.uio_resid;
 		//kfree(kbuf);
 		return 0;
 
@@ -226,8 +226,8 @@ int sys_read(int handle, void * buf, size_t len) {
 }
 
 //System write implementation
-//int sys_write(int handle, void * buf, size_t len, int32_t * retVal) {
-int sys_write(int handle, void * buf, size_t len) {
+int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
+//int sys_write(int handle, void * buf, size_t len) {
 
 	if(handle < 0 || handle >= OPEN_MAX || curthread->fdesc[handle] == NULL){
 		return ENFILE;	
@@ -259,8 +259,8 @@ int sys_write(int handle, void * buf, size_t len) {
 	u.uio_resid = len;
 	u.uio_segflg = UIO_USERSPACE;
 	u.uio_rw = UIO_WRITE;
-	//u.uio_space = curthread->t_addrspace;
-	u.uio_space = proc_getas();
+	u.uio_space = curthread->t_addrspace;
+	//u.uio_space = proc_getas();
 
 
 
@@ -270,12 +270,12 @@ int sys_write(int handle, void * buf, size_t len) {
 	if(res) {
 		kfree(kbuf);
 		lock_release(curthread->fdesc[handle]->fnode->filelock);
-		//* retVal = -1;
+		* retval = -1;
 		return res;
 	}else{
 		curr_ofn->offset = u.uio_offset;
 		lock_release(curthread->fdesc[handle]->fnode->filelock);
-		//*retVal = len - u.uio_resid;
+		*retval = len - u.uio_resid;
 		kfree(kbuf);
 		return 0;
 		
