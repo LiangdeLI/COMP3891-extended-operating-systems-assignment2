@@ -291,6 +291,43 @@ int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
 }
 
 
+//system duplicate2 implementation
+int sys_dup2(int old_handle, int new_handle, int32_t* retval)
+{
+	int res;
+	struct openFile* old_ofn;
+	if(curthread->fdesc[old_handle] == NULL){
+		return ENFILE;	
+	}
+	
+	if((old_handle < 0 || old_handle >= OPEN_MAX) || (new_handle < 0 || new_handle >= OPEN_MAX)){
+		return EBADF
+	}
+
+	if(old_handle == new_handle){
+		*retval = old_handle;
+		return 0;
+	}
+
+	//Not sure for what we should if it is not null
+	if(curthread->fdesc[new_handle] != NULL){
+		sys_close(new_handle,&res);
+		if(res){
+			return res;		
+		}
+	}else{
+		old_ofn = curthread->fdesc[old_handle] = fnode;
+		curthread->fdesc[new_handle]->fnode = old_ofn;
+		
+		lock_acquire(curthread->fdesc[old_handle]->fnode->filelock);
+		curr_ofn->refCount++;
+		lock_release(curthread->fdesc[old_handle]->fnode->filelock);
+
+		*retval = new_handle;
+		return 0;
+	}
+}
+
 
 
 
