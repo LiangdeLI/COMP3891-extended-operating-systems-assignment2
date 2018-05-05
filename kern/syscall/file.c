@@ -32,7 +32,9 @@ void init_fdesc(void){
 	struct vnode *v2 = NULL;
 
 	curthread->fdesc[1] = kmalloc(sizeof(struct fd_table));
+	KASSERT(curthread->fdesc[1] != NULL);
 	curthread->fdesc[2] = kmalloc(sizeof(struct fd_table));
+	KASSERT(curthread->fdesc[2] != NULL);
 
 	char c1[] = "con:";
 	char c2[] = "con:";
@@ -61,7 +63,7 @@ void init_fdesc(void){
  	curthread->fdesc[2]->fnode->flags = O_WRONLY;
  	curthread->fdesc[2]->fnode->refCount = 1;
  	curthread->fdesc[2]->fnode->filelock = lock_create("stderr_lock");
- 
+
  	return;
 
 
@@ -167,14 +169,15 @@ int sys_close(int handle, int32_t * retval) {
 	curr_ofn->refCount--;
 
 	if(curr_ofn->refCount == 0) {
-		curr_ofn->flags = 0;
-		curr_ofn->offset = 0;
 		vfs_close(curr_ofn->vNode);
-		curr_ofn->vNode = NULL;
+		//Destroy lock
+	    lock_destroy(curr_ofn->filelock);
+	    kfree(curr_ofn);
 	}
 	
 	//Release lock
 	lock_release(curr_ofn->filelock);
+
 
 	*retval = 0;
 	return 0;
@@ -184,6 +187,10 @@ int sys_close(int handle, int32_t * retval) {
 int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
 //int sys_read(int handle, void * buf, size_t len) {
 
+	if(handle < 0 || handle >= OPEN_MAX || curthread->fdesc[handle] == NULL){
+		return EBADF;	
+	}
+	
 	int res;
 	struct uio u;
 	struct iovec iov;
@@ -231,7 +238,7 @@ int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
 //int sys_write(int handle, void * buf, size_t len) {
 
 	if(handle < 0 || handle >= OPEN_MAX || curthread->fdesc[handle] == NULL){
-		return ENFILE;	
+		return EBADF;	
 	}
 	
 
