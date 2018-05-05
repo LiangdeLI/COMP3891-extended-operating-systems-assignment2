@@ -96,7 +96,7 @@ int sys_open(const_userptr_t file, int flag, mode_t mode){
 	
 	//Find available place in file descriptor table		
 	for(fd = 3; curthread->fdesc[fd] != NULL; fd++){
-		fd++;
+		
 		if(fd >= OPEN_MAX){
 			return ENFILE;		
 		}
@@ -228,12 +228,24 @@ int sys_read(int handle, void * buf, size_t len) {
 //int sys_write(int handle, void * buf, size_t len, int32_t * retVal) {
 int sys_write(int handle, void * buf, size_t len) {
 
+	if(handle < 0 || handle >= OPEN_MAX || curthread->fdesc[handle] == NULL){
+		return ENFILE;	
+	}
+
+
 	int res;
 	struct uio u;
 	struct iovec iov;
 
 	//Get the open file node
 	struct openFile* curr_ofn = curthread->fdesc[handle]->fnode;
+
+	//
+	void* kbuf = kmalloc(sizeof(*buf) * len);
+	if(kbuf == NULL) return EFAULT;
+	copyin((const_userptr_t) buf, kbuf, len);
+	//
+
 
 	//Configuration
 	iov.iov_ubase = (userptr_t)buf;
@@ -254,7 +266,7 @@ int sys_write(int handle, void * buf, size_t len) {
 	//if(res = VOP_WRITE(curr_ofn->vNode, &u)) {
 	res = VOP_WRITE(curr_ofn->vNode, &u);
 	if(res) {
-		//kfree(kbuf);
+		kfree(kbuf);
 		lock_release(ofTable[handle].filelock);
 		//* retVal = -1;
 		return res;
@@ -262,7 +274,7 @@ int sys_write(int handle, void * buf, size_t len) {
 		curr_ofn->offset = u.uio_offset;
 		lock_release(ofTable[handle].filelock);
 		//*retVal = len - u.uio_resid;
-		//kfree(kbuf);
+		kfree(kbuf);
 		return 0;
 		
 	}
