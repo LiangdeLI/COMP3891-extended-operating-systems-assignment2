@@ -7,6 +7,7 @@
 #include <lib.h>
 #include <uio.h>
 #include <thread.h>
+#include <proc.h>
 #include <current.h>
 #include <synch.h>
 #include <vfs.h>
