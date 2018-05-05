@@ -37,8 +37,8 @@ void init_fdesc(void){
 	char c1[] = "con:";
 	char c2[] = "con:";
 
-	vfs_open(c1,O_RDONLY,0,&v1); 
-	vfs_open(c2,O_RDONLY,0,&v2); 
+	vfs_open(c1,O_WRONLY,0,&v1); 
+	vfs_open(c2,O_WRONLY,0,&v2); 
 
 	//con = kstrdup("con:");
 	//vfs_open(con, O_RDONLY, 0, &vnout);
@@ -61,7 +61,7 @@ void init_fdesc(void){
  	curthread->fdesc[2]->fnode->flags = O_WRONLY;
  	curthread->fdesc[2]->fnode->refCount = 1;
  	curthread->fdesc[2]->fnode->filelock = lock_create("stderr_lock");
-
+ 
  	return;
 
 
