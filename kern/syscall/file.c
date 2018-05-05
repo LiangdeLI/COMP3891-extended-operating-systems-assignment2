@@ -251,14 +251,15 @@ int sys_write(int handle, void * buf, size_t len) {
 	iov.iov_ubase = (userptr_t)buf;
 	iov.iov_len = len;
 
-	lock_acquire(ofTable[handle].filelock);
+	lock_acquire(curthread->fdesc[handle]->fnode->filelock);
 	u.uio_iov = &iov;
 	u.uio_iovcnt = 1;
 	u.uio_offset = curr_ofn->offset;
 	u.uio_resid = len;
 	u.uio_segflg = UIO_USERSPACE;
-	u.uio_rw = UIO_READ;
-	u.uio_space = curthread->t_addrspace;
+	u.uio_rw = UIO_WRITE;
+	//u.uio_space = curthread->t_addrspace;
+	u.uio_space = proc_getas();
 
 
 
@@ -267,12 +268,12 @@ int sys_write(int handle, void * buf, size_t len) {
 	res = VOP_WRITE(curr_ofn->vNode, &u);
 	if(res) {
 		kfree(kbuf);
-		lock_release(ofTable[handle].filelock);
+		lock_release(curthread->fdesc[handle]->fnode->filelock);
 		//* retVal = -1;
 		return res;
 	}else{
 		curr_ofn->offset = u.uio_offset;
-		lock_release(ofTable[handle].filelock);
+		lock_release(curthread->fdesc[handle]->fnode->filelock);
 		//*retVal = len - u.uio_resid;
 		kfree(kbuf);
 		return 0;
