@@ -23,9 +23,10 @@
 
 
 
-//Add************************** The below code part still not work yet...
+//Add************************** 
 //int open(const char *filename, int flags, ...);
 
+struct openFile ofTable[OPEN_MAX];
 
 // Initialize the file descriptor table
 void init_fdesc(void){
