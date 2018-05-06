@@ -84,8 +84,23 @@ In this function, we will do:
 4. Update our offset of the file according to the check of step 3.
 5. Update the retval.
 
+================================================================
+int sys_fork(struct trapframe* tf, pid_t * ret_pid);
 
+This function is the system fork implementation.
+1. copy a trapfram in kernel heap, using kmalloc
+2. If current process dosen't have pid, git it one.
+3. Call thread_fork to create a new thread
+4. The first function newthread will run is "enter_forked_process"
 
+IN void enter_forked_process(void *tf, unsigned long addr);
 
+5. Assign this a3, v0 to 0, and increment epc to next step, the step after this function call.
+6. Assign this old trapframe to a new one on the kernel stack.
+7. addrspace activate
+8. Go to user-level
 
+================================================================
 
+We have a global variable struct proc_info * proc_info_list. It is a linked-list, the list will store all information of pid and the process it belongs to.
+We add pid value to the struct proc, to store the information of pid for each process. We add childthread, it is a pointer to the thread it had just created, so it can track the child's pid when return from getpid.

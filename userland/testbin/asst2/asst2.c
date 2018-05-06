@@ -10,6 +10,21 @@
 #define MAX_BUF 500
 char teststr[] = "The quick brown fox jumped over the lazy dog.";
 char buf[MAX_BUF];
+void test_fork(void);
+
+void test_fork(void) {
+        printf("About to fork..\n");
+        pid_t pid = fork();
+        printf("pif of parent before fork: %d", pid);
+        if (pid == 0) {
+                printf("Hello from child\n");
+                printf("Pid: %d", getpid());
+        } else {
+                printf("Hello from parent\n");
+                printf("Pid: %d", getpid());
+        }
+        printf("test_fork passed\n");
+}
 
 int
 main(int argc, char * argv[])
@@ -120,6 +135,7 @@ main(int argc, char * argv[])
 
         printf("* file lseek  okay\n");
         printf("* closing file\n");
+        test_fork();
         close(fd);
 
         return 0;

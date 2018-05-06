@@ -26,6 +26,8 @@
 
 //Add************************** 
 
+struct proc_info * proc_info_list = NULL;
+
 // global OPT
 struct openFile ofTable[OPEN_MAX];
 
@@ -419,6 +421,7 @@ void enter_forked_process(void *tf, unsigned long addr)
 	as_activate();
 
 	//tfnew = *tf;
+
 	mips_usermode(&tf_new);
 }
 
@@ -427,30 +430,13 @@ int sys_fork(struct trapframe *tf, pid_t * ret_pid)
 	int result = 0;
 	// names for new thread and new process
 	const char * thread_name = "kid_thread";
-	// const char * proc_name = "new_process";
-	
-	// create a new process
-	//struct proc * new_process = proc_create(proc_name);
-	
-	// copy whole fd table
-	// for(int i =0; i < OPEN_MAX; ++i)
-	// {
-	// 	new_process->fdesc[i] = kmalloc(sizeof(struct fd_table));
-	// 	KASSERT(new_process->fdesc[i] != NULL);
-	// 	*(new_process->fdesc[i]) = *(curproc->fdesc[i]);
-	// }
-	
-	// copy addrspace
-	// result = as_copy(curproc->p_addrspace, &(new_process->p_addrspace));
-	// if(result)
-	// {
-	// 	return result;
-	// }
 
 	// copy trapframe
 	struct trapframe *tf_child = kmalloc(sizeof(struct trapframe));
 	KASSERT(tf_child != NULL);
 	*tf_child = *tf;
+
+	if(!havePid(curproc)) assignPid(curproc);
 
 	result = thread_fork(thread_name, NULL, &enter_forked_process, (void*)tf_child, (unsigned long)curproc->p_addrspace);
 	if(result)
@@ -458,8 +444,56 @@ int sys_fork(struct trapframe *tf, pid_t * ret_pid)
 		return result;
 	}
 
-	*ret_pid = 1;
+	*ret_pid = curproc->childthread->t_proc->pid;
 	return 0;
 }
 
+
+void sys_getpid(pid_t * ret_pid)
+{
+	*ret_pid = curproc->pid;
+}
+
+bool havePid(struct proc * test_proc)
+{
+	struct proc_info * curr = proc_info_list;
+	while(curr != NULL)
+	{
+		if(curr->curr_proc == test_proc)
+		{
+			return true;
+		}
+		curr = curr->next;
+	}
+	return false;
+}
+
+pid_t assignPid(struct proc * test_proc)
+{
+	struct proc_info * curr = proc_info_list;
+	pid_t result;
+	if(curr!=NULL)
+	{
+		while(curr->next != NULL)
+		{
+			curr = curr->next;
+		}
+		curr->next = kmalloc(sizeof(struct proc_info));
+		KASSERT(curr->next!=NULL);
+		curr->next->curr_proc = test_proc;
+		curr->next->pid = curr->pid +1;
+		curr->next->next = NULL;
+		result = curr->next->pid;
+	}
+	else
+	{
+		proc_info_list = kmalloc(sizeof(struct proc_info));
+		KASSERT(proc_info_list!=NULL);
+		proc_info_list->curr_proc = test_proc;
+		proc_info_list->pid = 4;//set pid start from 4
+		proc_info_list->next = NULL;
+		result = 4;
+	}
+	return result;
+}
 //****************************

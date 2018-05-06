@@ -10,7 +10,7 @@
  */
 #include <limits.h>
 #include <mips/trapframe.h>
-
+#include <proc.h>
 
 /*
  * Put your function declarations and data types here ...
@@ -30,6 +30,11 @@ struct openFile {
   struct vnode * vNode;
 };
 
+struct proc_info {
+	struct proc * curr_proc;
+	pid_t pid;
+	struct proc_info * next;
+};
 
 void init_fdesc(void);
 
@@ -46,5 +51,11 @@ int sys_dup2(int old_handle, int new_handle, int32_t* retval);
 int sys_lseek(int fd, off_t pos, int whence, off_t* retval);
 
 int sys_fork(struct trapframe* tf, pid_t * ret_pid);
+
+void sys_getpid(pid_t * ret_pid);
+
+bool havePid(struct proc * test_proc);
+
+pid_t assignPid(struct proc * test_proc);
 
 #endif /* _FILE_H_ */
