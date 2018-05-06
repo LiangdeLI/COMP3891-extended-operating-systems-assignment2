@@ -371,5 +371,15 @@ int sys_lseek(int fd, off_t pos, int whence, off_t* retval)
 	return 0;
 }
 
+int sys_fork(struct trapframe *tf, pid_t * ret_pid)
+{
+	const char * name = "kid";
+	int thread_fork(name, NULL,
+	    void (*entrypoint)(void *data1, unsigned long data2),
+	    void *data1, unsigned long data2)
+
+	*ret_pid = 1;
+	return 0;
+}
 
 //****************************

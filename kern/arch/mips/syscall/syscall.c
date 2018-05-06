@@ -85,6 +85,7 @@ syscall(struct trapframe *tf)
 	int64_t offset;
 	int whence;
 	off_t retval64;
+	pid_t ret_pid;
 
 	KASSERT(curthread != NULL);
 	KASSERT(curthread->t_curspl == 0);
@@ -136,7 +137,9 @@ syscall(struct trapframe *tf)
 		err = sys_lseek((int)tf->tf_a0, offset, (int)whence, &retval64);
 		split64to32(retval64, &tf->tf_v0, &tf->tf_v1);
 		break;
-
+		case SYS_fork:
+		err = sys_fork(tf, &ret_pid);
+		break;
 	    default:
 		kprintf("Unknown syscall %d\n", callno);
 		err = ENOSYS;
