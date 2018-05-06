@@ -308,7 +308,7 @@ int sys_dup2(int old_handle, int new_handle, int32_t* retval)
 	}
 	
 	if((old_handle < 0 || old_handle >= OPEN_MAX) || (new_handle < 0 || new_handle >= OPEN_MAX)){
-		return EBADF
+		return EBADF;
 	}
 
 	if(old_handle == new_handle){
@@ -323,16 +323,17 @@ int sys_dup2(int old_handle, int new_handle, int32_t* retval)
 			return res;		
 		}
 	}else{
-		old_ofn = curthread->fdesc[old_handle] = fnode;
+		old_ofn = curthread->fdesc[old_handle]->fnode;
 		curthread->fdesc[new_handle]->fnode = old_ofn;
 		
 		lock_acquire(curthread->fdesc[old_handle]->fnode->filelock);
-		curr_ofn->refCount++;
+		old_ofn->refCount++;
 		lock_release(curthread->fdesc[old_handle]->fnode->filelock);
 
 		*retval = new_handle;
 		return 0;
 	}
+
 }
 
 
