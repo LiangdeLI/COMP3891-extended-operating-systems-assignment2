@@ -25,6 +25,11 @@ int sys_write(int handle, void * buf, size_t len, int32_t * retval);
 =================================================================
 int sys_dup2(int old_handle, int new_handle, int32_t* retval);
 
+Firstly, we check the exception case. If it is, we throw the exception.
+Secondly, we check whether the old_handle and new_handle is the same one. If they are, we don't need to any more things, so just return.
+Then we check whether the destination in the file descriptor tabel already exists. If it is, we need to decrease the reference count for the open file. If the reference count is zero after decreasing, we close the file.
+After, we make the new file descriptor point to the open file as the old file descriptor does.
+Finally, we finish our dupplication.
 
 =================================================================
 int sys_lseek(int fd, off_t pos, int whence, off_t* retval);
