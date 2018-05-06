@@ -1,26 +1,67 @@
 Place your design document here.
 
+
+In our design, every progress (every thread for single thread case) has its own file descriptor table. Every descriptor in the file descriptor table can point to a open-file in the open file table. Open-file is a struct which includes flags, off_t offset(the offset of the file), refCount(reference count), filelock (a lock pointer), vNode(a pointer which points to v node).
+
+We also have a global "open file table" (which is actually the array of open_file that we defined).
+
+
+
+
+
 =================================================================
 void init_fdesc(void);
+
+init_fdesc is the function to initialization of the file descriptor table.
 Init stdout and stderr, link them to console "con:", create struct openFile for them.
+Except for basic intialization of the file descriptor table, We also call vfs_open for standard output and standard error here.
 
 
 =================================================================
 int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval);
 
+This function is the system open implementation.
+In this function, we will do:
+1. Check the exception case. 
+2 .Call the copyinstr to copy the string to kernel space.
+3. Find available place in file descriptor table
+4. Find available place in open file table
+5. Call vfs_open to open the file
+6. Update the information in the open file node
+7. Connect the file descriptor to open_file_node
 
 
 =================================================================
 int sys_close(int handle, int32_t * retval);
 
+This function is the system close implementation.
+In this function, we will do:
+1. Check the exception case. 
+2. Free the file descriptor
+3. Decrease the reference account
+4. After decreasing, chech whether the reference count is zero. If it is, we call vfs_close.
 
 =================================================================
 int sys_read(int handle, void * buf, size_t len, int32_t * retval);
 
+This function is the system read implementation.
+In this function, we will do:
+1. Check the exception case.
+2. Call uio_kinit function for uio configuration.
+3. Call the VOP_READ function
+4. If "error", we just return "error" code. If not, we update the offset and the retval and return 0.
 
 =================================================================
 int sys_write(int handle, void * buf, size_t len, int32_t * retval);
 
+This function is the system write implementation.
+In this function, we will do:
+1. Check the exception case.
+2. Get the open file node
+3. Call the copyinstr to copy the string to kernel space.
+4. Call uio_kinit function for uio configuration.
+5. Call the VOP_READ function
+6. If "error", we just return "error" code. If not, we update the offset and the retval and return 0.
 
 =================================================================
 int sys_dup2(int old_handle, int new_handle, int32_t* retval);
@@ -33,4 +74,20 @@ Finally, we finish our dupplication.
 
 =================================================================
 int sys_lseek(int fd, off_t pos, int whence, off_t* retval);
+
+This function is the system lseek implementation.
+Before this function called, we need to deal with our parameters, because off_t is 64 bits. But our machine is 32 bit, so we need to do the transformation.
+After this function finished, we also transfer our results to 32 bits.
+
+In this function, we will do:
+1. Check the exception case, including checking whether it is seekable or not.
+2. Called VOP_STATE to get the stack pointer.
+3. Check the value of whence and finish the following steps accoring to different values.
+4. Update our offset of the file according to the check of step 3.
+5. Update the retval.
+
+
+
+
+
 
