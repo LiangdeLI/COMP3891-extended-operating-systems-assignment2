@@ -408,18 +408,18 @@ void enter_forked_process(void *tf, unsigned long addr)
 	struct trapframe * tf_old = (struct trapframe *) tf;
 	curproc->p_addrspace = (struct addrspace *)addr;//avoid warning
 	
-	struct trapframe* tf_new = kmalloc(sizeof(struct trapframe));
+	struct trapframe tf_new;
 
 	tf_old->tf_a3 = 0;
 	tf_old->tf_v0 = 0;
 	tf_old->tf_epc += 4;
 
-	*tf_new = *tf_old;
+	tf_new = *tf_old;
 	// activate new addrspace
 	as_activate();
 
 	//tfnew = *tf;
-	mips_usermode(tf_new);
+	mips_usermode(&tf_new);
 }
 
 int sys_fork(struct trapframe *tf, pid_t * ret_pid)
@@ -427,32 +427,32 @@ int sys_fork(struct trapframe *tf, pid_t * ret_pid)
 	int result = 0;
 	// names for new thread and new process
 	const char * thread_name = "kid_thread";
-	const char * proc_name = "new_process";
+	// const char * proc_name = "new_process";
 	
 	// create a new process
-	struct proc * new_process = proc_create(proc_name);
+	//struct proc * new_process = proc_create(proc_name);
 	
 	// copy whole fd table
-	for(int i =0; i < OPEN_MAX; ++i)
-	{
-		new_process->fdesc[i] = kmalloc(sizeof(struct fd_table));
-		KASSERT(new_process->fdesc[i] != NULL);
-		*(new_process->fdesc[i]) = *(curproc->fdesc[i]);
-	}
+	// for(int i =0; i < OPEN_MAX; ++i)
+	// {
+	// 	new_process->fdesc[i] = kmalloc(sizeof(struct fd_table));
+	// 	KASSERT(new_process->fdesc[i] != NULL);
+	// 	*(new_process->fdesc[i]) = *(curproc->fdesc[i]);
+	// }
 	
 	// copy addrspace
-	result = as_copy(curproc->p_addrspace, &(new_process->p_addrspace));
-	if(result)
-	{
-		return result;
-	}
+	// result = as_copy(curproc->p_addrspace, &(new_process->p_addrspace));
+	// if(result)
+	// {
+	// 	return result;
+	// }
 
 	// copy trapframe
 	struct trapframe *tf_child = kmalloc(sizeof(struct trapframe));
 	KASSERT(tf_child != NULL);
 	*tf_child = *tf;
 
-	result = thread_fork(thread_name, new_process, &enter_forked_process, (void*)tf_child, (unsigned long)curproc->p_addrspace);
+	result = thread_fork(thread_name, NULL, &enter_forked_process, (void*)tf_child, (unsigned long)curproc->p_addrspace);
 	if(result)
 	{
 		return result;
