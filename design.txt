@@ -1,18 +1,16 @@
 Place your design document here.
 
 
-In our design, every progress (every thread for single thread case) has its own file descriptor table. Every descriptor in the file descriptor table can point to a open-file in the open file table. Open-file is a struct which includes flags, off_t offset(the offset of the file), refCount(reference count), filelock (a lock pointer), vNode(a pointer which points to v node).
+In our design, every progress has its own file descriptor table. Every descriptor in the file descriptor table can point to a open-file in the global open file table. Open-file is a struct which includes flags, off_t offset(the offset of the file), refCount(reference count), filelock (a lock pointer), vNode(a pointer which points to vnode).
 
-We also have a global "open file table" (which is actually the array of open_file that we defined).
-
-
+We also have a global "open file table" (which is actually the array of open_file that we defined in file.c).
 
 
 
 =================================================================
 void init_fdesc(void);
 
-init_fdesc is the function to initialization of the file descriptor table.
+init_fdesc is the function to initialization of the file descriptor table. It will be called in runprogram.c
 Init stdout and stderr, link them to console "con:", create struct openFile for them.
 Except for basic intialization of the file descriptor table, We also call vfs_open for standard output and standard error here.
 
@@ -39,7 +37,7 @@ In this function, we will do:
 1. Check the exception case. 
 2. Free the file descriptor
 3. Decrease the reference account
-4. After decreasing, chech whether the reference count is zero. If it is, we call vfs_close.
+4. After decreasing, check whether the reference count is zero. If it is, we call vfs_close.
 
 =================================================================
 int sys_read(int handle, void * buf, size_t len, int32_t * retval);
@@ -76,12 +74,12 @@ Finally, we finish our dupplication.
 int sys_lseek(int fd, off_t pos, int whence, off_t* retval);
 
 This function is the system lseek implementation.
-Before this function called, we need to deal with our parameters, because off_t is 64 bits. But our machine is 32 bit, so we need to do the transformation.
-After this function finished, we also transfer our results to 32 bits.
+Before this function called, we need to deal with our parameters, because off_t is 64 bits. But our machine is 32 bit, so we need to do the transformation. Joint a2 and a3 to 64 bits, off_t. And get whence from the stack.
+After this function finished, we also transfer our results to two 32 bits register v0 and v1.
 
 In this function, we will do:
 1. Check the exception case, including checking whether it is seekable or not.
-2. Called VOP_STATE to get the stack pointer.
+2. Called VOP_STAT() to get the information of the file.
 3. Check the value of whence and finish the following steps accoring to different values.
 4. Update our offset of the file according to the check of step 3.
 5. Update the retval.
