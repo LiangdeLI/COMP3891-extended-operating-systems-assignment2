@@ -289,7 +289,7 @@ int sys_dup2(int old_handle, int new_handle, int32_t* retval)
 		return 0;
 	}
 
-	//Not sure for what we should if it is not null
+	//Check whether the destination in file descriptor table already exists
 	if(curthread->fdesc[new_handle] != NULL){
 		//Acquire lock
 		new_ofn = curthread->fdesc[new_handle]->fnode;
