@@ -200,7 +200,6 @@ int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
 	uio_kinit(&iov, &u, (void*)kbuf, len, curr_ofn->offset, UIO_READ);
 
 	//Called the VOP_READ function
-	//if(res = VOP_READ(curr_ofn->vNode, &u)) {
 	res = VOP_READ(curr_ofn->vNode, &u);
 
 	if(res) {
@@ -222,7 +221,6 @@ int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
 
 //System write implementation
 int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
-//int sys_write(int handle, void * buf, size_t len) {
 
 	if(handle < 0 || handle >= OPEN_MAX || curthread->fdesc[handle] == NULL){
 		*retval = -1;
@@ -250,10 +248,8 @@ int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
 	lock_acquire(curthread->fdesc[handle]->fnode->filelock);	
     uio_kinit(&iov, &u, (void*)buf, len, curr_ofn->offset, UIO_WRITE);
 
-	
-	//if(res = VOP_WRITE(curr_ofn->vNode, &u)) {
 	res = VOP_WRITE(curr_ofn->vNode, &u);
-	// if(handle!=1 && handle!=2) kprintf("here3\n");
+
 	if(res) {
 		kfree(kbuf);
 		lock_release(curthread->fdesc[handle]->fnode->filelock);
