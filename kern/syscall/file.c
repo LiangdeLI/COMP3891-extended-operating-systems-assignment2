@@ -44,11 +44,6 @@ void init_fdesc(void){
 	vfs_open(c1,O_WRONLY,0,&v1); 
 	vfs_open(c2,O_WRONLY,0,&v2); 
 
-	//con = kstrdup("con:");
-	//vfs_open(con, O_RDONLY, 0, &vnout);
-	//con = kstrdup("con:");
-	//vfs_open(con, O_RDONLY, 0, &vnout);
-
 	curthread->fdesc[1]->fnode = kmalloc(sizeof(struct openFile));
  	KASSERT(curthread->fdesc[1]->fnode != NULL);
  	curthread->fdesc[2]->fnode = kmalloc(sizeof(struct openFile));
@@ -70,24 +65,10 @@ void init_fdesc(void){
 
 
 }
-/*
-// Initialize the open file table (Although I am not sure we need open file table but just leave here first)
-void init_of(void){
-	for(int i = 0;i < OPEN_MAX; i++){
-		ofTable[i].vNode = NULL;
-		ofTable[i].offset = 0;
-		ofTable[i].flags = 0;
-		ofTable[i].refCount = 0;
-		ofTable[i].filelock = lock_creat("of_table_lock");	
-	}
-	return;
-}
-*/
 
 //System open implementation
-int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval){
-//int sys_open(const_userptr_t file, int flag, mode_t mode){
-		
+int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval)
+{
 	int res;
 	int fd = 3;
 	int i;
@@ -100,16 +81,12 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval){
 		return ENOENT;
 	}
 
-
 	if(f == NULL){
 		return ENOMEM;	
-	}
-	
+	}	
 
 	//Copy the string to kernel space.
 	copyinstr(file, f, PATH_MAX, &len);
-	
-
 	
 	//Find available place in file descriptor table		
 	for(fd = 3; curthread->fdesc[fd] != NULL; fd++){
@@ -126,19 +103,12 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval){
 		return EFAULT;
 	}
 
-	
-	//curthread->t_fdesc[fd] = kmalloc(sizeof(struct fd_table));
-
-	
 	//Find available place in open file table
 	for(i=0;ofTable[i].vNode != NULL;i++){
 		if(i >= OPEN_MAX) {
 			return ENFILE;
 		}
 	}
-
-
-	
 
 	// try to call vfs_open to open the file
 	//if (res = vfs_open((char*) file, flag, mode, &vNode)){
@@ -159,22 +129,18 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval){
 	curthread->fdesc[fd]->fnode = &ofTable[i];
 	*retval = fd;
 
-
 	return 0;
 }
 
 //System close implementation
 int sys_close(int handle, int32_t * retval) {
-//int sys_close(int handle) {
-
+	
 	if(handle < 0 || handle >= OPEN_MAX || curthread->fdesc[handle] == NULL){
 		*retval = -1;
 		return EBADF;	
 	}
-
 	
 	struct openFile* curr_ofn = curthread->fdesc[handle]->fnode;
-
 
 	if(curr_ofn->refCount == 0 || curr_ofn->vNode == NULL){
 		*retval = -1;
@@ -201,14 +167,12 @@ int sys_close(int handle, int32_t * retval) {
 	//Release lock
 	lock_release(curr_ofn->filelock);
 
-
 	*retval = 0;
 	return 0;
 }
 
 //System read implementation
 int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
-//int sys_read(int handle, void * buf, size_t len) {
 
 	if(handle < 0 || handle >= OPEN_MAX || curthread->fdesc[handle] == NULL){
 		*retval = -1;
@@ -220,27 +184,18 @@ int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
 		return EINVAL;	
 	}
 
-
-
-
 	int res;
 	struct uio u;
-	struct iovec iov;
-	
+	struct iovec iov;	
 
 	//Get the open file node
 	struct openFile* curr_ofn = curthread->fdesc[handle]->fnode;
-
 
 	//Configuration
 
 	lock_acquire(curthread->fdesc[handle]->fnode->filelock);
 
-
-
 	uio_kinit(&iov, &u, (void*)buf, len, curr_ofn->offset, UIO_READ);
-
-
 
 	//Called the VOP_READ function
 	//if(res = VOP_READ(curr_ofn->vNode, &u)) {
@@ -275,15 +230,12 @@ int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
 		return EINVAL;	
 	}
 
-
-
 	int res;
 	struct uio u;
 	struct iovec iov;
 
 	//Get the open file node
 	struct openFile* curr_ofn = curthread->fdesc[handle]->fnode;
-
 	
 	//
 	void* kbuf = kmalloc(sizeof(*buf) * len);
