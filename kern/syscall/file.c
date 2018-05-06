@@ -171,8 +171,10 @@ int sys_close(int handle, int32_t * retval) {
 	if(curr_ofn->refCount == 0) {
 		vfs_close(curr_ofn->vNode);
 		//Destroy lock
+		lock_release(curr_ofn->filelock);
 	    lock_destroy(curr_ofn->filelock);
-	    kfree(curr_ofn);
+	    *retval = 0;
+		return 0;
 	}
 	
 	//Release lock
@@ -201,17 +203,13 @@ int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
 
 
 	//Configuration
-	iov.iov_ubase = (userptr_t)buf;
-	iov.iov_len = len;
 
 	lock_acquire(curthread->fdesc[handle]->fnode->filelock);
-	u.uio_iov = &iov;
-	u.uio_iovcnt = 1;
-	u.uio_offset = curr_ofn->offset;
-	u.uio_resid = len;
-	u.uio_segflg = UIO_USERSPACE;
-	u.uio_rw = UIO_READ;
-	u.uio_space = proc_getas();
+
+
+
+	uio_kinit(&iov, &u, (void*)buf, len, curr_ofn->offset, UIO_READ);
+
 
 
 	//Called the VOP_READ function
@@ -256,28 +254,8 @@ int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
 	size_t got;
 	copyinstr((const_userptr_t) buf, (char*)kbuf, len, &got);
 	//
-	
-
-	//Configuration
-	iov.iov_ubase = (void*)kbuf;
-	iov.iov_len = got;
-
-	// if(handle!=1 && handle!=2) kprintf("here1\n");
-	lock_acquire(curthread->fdesc[handle]->fnode->filelock);
-	// if(handle!=1 && handle!=2) kprintf("here2\n");
-	u.uio_iov = &iov;
-
-	u.uio_iovcnt = 1;
-	u.uio_offset = curr_ofn->offset;
-
-	u.uio_resid = got;
-	u.uio_segflg = UIO_SYSSPACE;
-	u.uio_rw = UIO_WRITE;
-
-	//u.uio_space = curthread->t_addrspace;
-	u.uio_space = proc_getas();
-
-
+	lock_acquire(curthread->fdesc[handle]->fnode->filelock);	
+    uio_kinit(&iov, &u, (void*)buf, len, curr_ofn->offset, UIO_WRITE);
 
 	
 	//if(res = VOP_WRITE(curr_ofn->vNode, &u)) {
