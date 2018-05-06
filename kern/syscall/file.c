@@ -91,12 +91,24 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval){
 	int fd = 3;
 	int i;
 	struct vnode* vNode = NULL;
-
+	char *f = (char*)kmalloc(sizeof(char)*PATH_MAX);
+	size_t len;
 
 	//if the file is NULL, there is no such file.
 	if(file == NULL){
 		return ENOENT;
 	}
+
+
+	if(f == NULL){
+		return ENOMEM;	
+	}
+	
+
+	//Copy the string to kernel space.
+	copyinstr(file, f, PATH_MAX, &len);
+	
+
 	
 	//Find available place in file descriptor table		
 	for(fd = 3; curthread->fdesc[fd] != NULL; fd++){
@@ -153,11 +165,18 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval){
 //System close implementation
 int sys_close(int handle, int32_t * retval) {
 //int sys_close(int handle) {
+
+	if(handle < 0 || handle >= OPEN_MAX || curthread->fdesc[handle] == NULL){
+		*retval = -1;
+		return EBADF;	
+	}
+
 	
 	struct openFile* curr_ofn = curthread->fdesc[handle]->fnode;
 
 
 	if(curr_ofn->refCount == 0 || curr_ofn->vNode == NULL){
+		*retval = -1;
 		return EBADF;
 	}
 		
@@ -191,9 +210,18 @@ int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
 //int sys_read(int handle, void * buf, size_t len) {
 
 	if(handle < 0 || handle >= OPEN_MAX || curthread->fdesc[handle] == NULL){
+		*retval = -1;
 		return EBADF;	
 	}
 	
+	if(!(curthread->fdesc[handle]->fnode->flags != O_RDONLY || curthread->fdesc[handle]->fnode	->flags != O_RDWR)){
+		*retval = -1;
+		return EINVAL;	
+	}
+
+
+
+
 	int res;
 	struct uio u;
 	struct iovec iov;
@@ -237,9 +265,16 @@ int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
 //int sys_write(int handle, void * buf, size_t len) {
 
 	if(handle < 0 || handle >= OPEN_MAX || curthread->fdesc[handle] == NULL){
+		*retval = -1;
 		return EBADF;	
 	}
 	
+	if(!(curthread->fdesc[handle]->fnode->flags != O_WRONLY || curthread->fdesc[handle]->fnode->flags != O_RDWR)){
+		*retval = -1;
+		return EINVAL;	
+	}
+
+
 
 	int res;
 	struct uio u;
@@ -288,6 +323,7 @@ int sys_dup2(int old_handle, int new_handle, int32_t* retval)
 	}
 	
 	if((old_handle < 0 || old_handle >= OPEN_MAX) || (new_handle < 0 || new_handle >= OPEN_MAX)){
+		*retval = -1;
 		return EBADF;
 	}
 
