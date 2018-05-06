@@ -76,7 +76,7 @@ runprogram(char *progname)
 	}
 
 	//Add
-	if(curthread->fdesc[0] == NULL){
+	if(curproc->fdesc[0] == NULL){
 		init_fdesc();
 	
 	}

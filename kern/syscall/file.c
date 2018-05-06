@@ -33,10 +33,10 @@ void init_fdesc(void){
 	struct vnode *v1 = NULL;
 	struct vnode *v2 = NULL;
 
-	curthread->fdesc[1] = kmalloc(sizeof(struct fd_table));
-	KASSERT(curthread->fdesc[1] != NULL);
-	curthread->fdesc[2] = kmalloc(sizeof(struct fd_table));
-	KASSERT(curthread->fdesc[2] != NULL);
+	curproc->fdesc[1] = kmalloc(sizeof(struct fd_table));
+	KASSERT(curproc->fdesc[1] != NULL);
+	curproc->fdesc[2] = kmalloc(sizeof(struct fd_table));
+	KASSERT(curproc->fdesc[2] != NULL);
 
 	char c1[] = "con:";
 	char c2[] = "con:";
@@ -44,22 +44,22 @@ void init_fdesc(void){
 	vfs_open(c1,O_WRONLY,0,&v1); 
 	vfs_open(c2,O_WRONLY,0,&v2); 
 
-	curthread->fdesc[1]->fnode = kmalloc(sizeof(struct openFile));
- 	KASSERT(curthread->fdesc[1]->fnode != NULL);
- 	curthread->fdesc[2]->fnode = kmalloc(sizeof(struct openFile));
- 	KASSERT(curthread->fdesc[2]->fnode != NULL);
+	curproc->fdesc[1]->fnode = kmalloc(sizeof(struct openFile));
+ 	KASSERT(curproc->fdesc[1]->fnode != NULL);
+ 	curproc->fdesc[2]->fnode = kmalloc(sizeof(struct openFile));
+ 	KASSERT(curproc->fdesc[2]->fnode != NULL);
 
- 	curthread->fdesc[1]->fnode->vNode = v1;
-	curthread->fdesc[1]->fnode->offset = 0;
- 	curthread->fdesc[1]->fnode->flags = O_WRONLY;
- 	curthread->fdesc[1]->fnode->refCount = 1;
- 	curthread->fdesc[1]->fnode->filelock = lock_create("stdout_lock");
+ 	curproc->fdesc[1]->fnode->vNode = v1;
+	curproc->fdesc[1]->fnode->offset = 0;
+ 	curproc->fdesc[1]->fnode->flags = O_WRONLY;
+ 	curproc->fdesc[1]->fnode->refCount = 1;
+ 	curproc->fdesc[1]->fnode->filelock = lock_create("stdout_lock");
 
- 	curthread->fdesc[2]->fnode->vNode = v2;
-	curthread->fdesc[2]->fnode->offset = 0;
- 	curthread->fdesc[2]->fnode->flags = O_WRONLY;
- 	curthread->fdesc[2]->fnode->refCount = 1;
- 	curthread->fdesc[2]->fnode->filelock = lock_create("stderr_lock");
+ 	curproc->fdesc[2]->fnode->vNode = v2;
+	curproc->fdesc[2]->fnode->offset = 0;
+ 	curproc->fdesc[2]->fnode->flags = O_WRONLY;
+ 	curproc->fdesc[2]->fnode->refCount = 1;
+ 	curproc->fdesc[2]->fnode->filelock = lock_create("stderr_lock");
 
  	return;
 
@@ -89,18 +89,18 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval)
 	copyinstr(file, f, PATH_MAX, &len);
 	
 	//Find available place in file descriptor table		
-	for(fd = 3; curthread->fdesc[fd] != NULL; fd++){
+	for(fd = 3; curproc->fdesc[fd] != NULL; fd++){
 		
 		if(fd >= OPEN_MAX){
 			return ENFILE;		
 		}
 	}
 
-	curthread->fdesc[fd] = kmalloc(sizeof(struct fd_table));
-	KASSERT(curthread->fdesc[fd] != NULL);
+	curproc->fdesc[fd] = kmalloc(sizeof(struct fd_table));
+	KASSERT(curproc->fdesc[fd] != NULL);
 
 	//if the file decriptor table is null, it means: "Bad memory reference"?
-	if(curthread->fdesc[fd] == NULL){
+	if(curproc->fdesc[fd] == NULL){
 		return EFAULT;
 	}
 
@@ -126,7 +126,7 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval)
 	ofTable[i].filelock = lock_create("alock");
 
 	//Connect the file descriptor to open_file_node
-	curthread->fdesc[fd]->fnode = &ofTable[i];
+	curproc->fdesc[fd]->fnode = &ofTable[i];
 	kfree(f);
 	*retval = fd;
 
@@ -136,12 +136,12 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval)
 //System close implementation
 int sys_close(int handle, int32_t * retval) {
 	
-	if(handle < 0 || handle >= OPEN_MAX || curthread->fdesc[handle] == NULL){
+	if(handle < 0 || handle >= OPEN_MAX || curproc->fdesc[handle] == NULL){
 		*retval = -1;
 		return EBADF;	
 	}
 	
-	struct openFile* curr_ofn = curthread->fdesc[handle]->fnode;
+	struct openFile* curr_ofn = curproc->fdesc[handle]->fnode;
 
 	if(curr_ofn->refCount == 0 || curr_ofn->vNode == NULL){
 		*retval = -1;
@@ -149,8 +149,8 @@ int sys_close(int handle, int32_t * retval) {
 	}
 		
 	//free the file descriptor 
-	kfree(curthread->fdesc[handle]);
-	curthread->fdesc[handle] = NULL;
+	kfree(curproc->fdesc[handle]);
+	curproc->fdesc[handle] = NULL;
 	
 	//Acquire lock
 	lock_acquire(curr_ofn->filelock);
@@ -175,12 +175,12 @@ int sys_close(int handle, int32_t * retval) {
 //System read implementation
 int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
 
-	if(handle < 0 || handle >= OPEN_MAX || curthread->fdesc[handle] == NULL){
+	if(handle < 0 || handle >= OPEN_MAX || curproc->fdesc[handle] == NULL){
 		*retval = -1;
 		return EBADF;	
 	}
 	
-	if(!(curthread->fdesc[handle]->fnode->flags != O_RDONLY || curthread->fdesc[handle]->fnode	->flags != O_RDWR)){
+	if(!(curproc->fdesc[handle]->fnode->flags != O_RDONLY || curproc->fdesc[handle]->fnode	->flags != O_RDWR)){
 		*retval = -1;
 		return EINVAL;	
 	}
@@ -190,12 +190,12 @@ int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
 	struct iovec iov;	
 
 	//Get the open file node
-	struct openFile* curr_ofn = curthread->fdesc[handle]->fnode;
+	struct openFile* curr_ofn = curproc->fdesc[handle]->fnode;
 	
 	void* kbuf = kmalloc(sizeof(*buf) * len);
 	KASSERT(kbuf != NULL);
 
-	lock_acquire(curthread->fdesc[handle]->fnode->filelock);
+	lock_acquire(curproc->fdesc[handle]->fnode->filelock);
 	//Configuration
 	uio_kinit(&iov, &u, (void*)kbuf, len, curr_ofn->offset, UIO_READ);
 
@@ -204,7 +204,7 @@ int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
 
 	if(res) {
 		kfree(kbuf);
-		lock_release(curthread->fdesc[handle]->fnode->filelock);
+		lock_release(curproc->fdesc[handle]->fnode->filelock);
 		*retval = -1;
 		return res;
 	}else{
@@ -212,7 +212,7 @@ int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
 		size_t got;
 		copyoutstr((char*)kbuf, (userptr_t) buf, len, &got);
 		curr_ofn->offset = u.uio_offset;
-		lock_release(curthread->fdesc[handle]->fnode->filelock);
+		lock_release(curproc->fdesc[handle]->fnode->filelock);
 		*retval = len - u.uio_resid;
 		kfree(kbuf);
 		return 0;
@@ -222,12 +222,12 @@ int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
 //System write implementation
 int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
 
-	if(handle < 0 || handle >= OPEN_MAX || curthread->fdesc[handle] == NULL){
+	if(handle < 0 || handle >= OPEN_MAX || curproc->fdesc[handle] == NULL){
 		*retval = -1;
 		return EBADF;	
 	}
 	
-	if(!(curthread->fdesc[handle]->fnode->flags != O_WRONLY || curthread->fdesc[handle]->fnode->flags != O_RDWR)){
+	if(!(curproc->fdesc[handle]->fnode->flags != O_WRONLY || curproc->fdesc[handle]->fnode->flags != O_RDWR)){
 		*retval = -1;
 		return EINVAL;	
 	}
@@ -237,7 +237,7 @@ int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
 	struct iovec iov;
 
 	//Get the open file node
-	struct openFile* curr_ofn = curthread->fdesc[handle]->fnode;
+	struct openFile* curr_ofn = curproc->fdesc[handle]->fnode;
 	
 	//
 	void* kbuf = kmalloc(sizeof(*buf) * len);
@@ -245,19 +245,19 @@ int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
 	size_t got;
 	copyinstr((const_userptr_t) buf, (char*)kbuf, len, &got);
 	//
-	lock_acquire(curthread->fdesc[handle]->fnode->filelock);	
+	lock_acquire(curproc->fdesc[handle]->fnode->filelock);	
     uio_kinit(&iov, &u, (void*)buf, len, curr_ofn->offset, UIO_WRITE);
 
 	res = VOP_WRITE(curr_ofn->vNode, &u);
 
 	if(res) {
 		kfree(kbuf);
-		lock_release(curthread->fdesc[handle]->fnode->filelock);
+		lock_release(curproc->fdesc[handle]->fnode->filelock);
 		* retval = -1;
 		return res;
 	}else{
 		curr_ofn->offset = u.uio_offset;
-		lock_release(curthread->fdesc[handle]->fnode->filelock);
+		lock_release(curproc->fdesc[handle]->fnode->filelock);
 		*retval = len - u.uio_resid;
 		kfree(kbuf);
 		return 0;
@@ -271,7 +271,7 @@ int sys_dup2(int old_handle, int new_handle, int32_t* retval)
 {
 	struct openFile* old_ofn;
 	struct openFile* new_ofn;
-	if(curthread->fdesc[old_handle] == NULL){
+	if(curproc->fdesc[old_handle] == NULL){
 		return EBADF;	
 	}
 	
@@ -286,9 +286,9 @@ int sys_dup2(int old_handle, int new_handle, int32_t* retval)
 	}
 
 	//Check whether the destination in file descriptor table already exists
-	if(curthread->fdesc[new_handle] != NULL){
+	if(curproc->fdesc[new_handle] != NULL){
 		//Acquire lock
-		new_ofn = curthread->fdesc[new_handle]->fnode;
+		new_ofn = curproc->fdesc[new_handle]->fnode;
 		lock_acquire(new_ofn->filelock);
 		new_ofn->refCount--;
 		//Release lock
@@ -300,12 +300,12 @@ int sys_dup2(int old_handle, int new_handle, int32_t* retval)
 		}
 	}
 	
-	old_ofn = curthread->fdesc[old_handle]->fnode;
-	curthread->fdesc[new_handle]->fnode = old_ofn;
+	old_ofn = curproc->fdesc[old_handle]->fnode;
+	curproc->fdesc[new_handle]->fnode = old_ofn;
 	
-	lock_acquire(curthread->fdesc[old_handle]->fnode->filelock);
+	lock_acquire(curproc->fdesc[old_handle]->fnode->filelock);
 	old_ofn->refCount++;
-	lock_release(curthread->fdesc[old_handle]->fnode->filelock);
+	lock_release(curproc->fdesc[old_handle]->fnode->filelock);
 
 	*retval = new_handle;
 	return 0;
@@ -315,14 +315,14 @@ int sys_dup2(int old_handle, int new_handle, int32_t* retval)
 int sys_lseek(int fd, off_t pos, int whence, off_t* retval)
 {
 	//fd is not a valid file handle.
-	if(curthread->fdesc[fd] == NULL || fd < 0 || fd >= OPEN_MAX)
+	if(curproc->fdesc[fd] == NULL || fd < 0 || fd >= OPEN_MAX)
 	{
 		*retval = -1;
 		return EBADF;
 	}
 
 	//fd refers to an object which does not support seeking
-	if(!VOP_ISSEEKABLE(curthread->fdesc[fd]->fnode->vNode))
+	if(!VOP_ISSEEKABLE(curproc->fdesc[fd]->fnode->vNode))
 	{
 		*retval = -1;
 		return ESPIPE;
@@ -336,37 +336,37 @@ int sys_lseek(int fd, off_t pos, int whence, off_t* retval)
 	}
 	
 	struct stat * stat_ptr = kmalloc(sizeof(struct stat));
-	VOP_STAT(curthread->fdesc[fd]->fnode->vNode, stat_ptr);
+	VOP_STAT(curproc->fdesc[fd]->fnode->vNode, stat_ptr);
 
 	//Acqurie lock
-	lock_acquire(curthread->fdesc[fd]->fnode->filelock);
+	lock_acquire(curproc->fdesc[fd]->fnode->filelock);
 	
 
 	if(whence==SEEK_SET)
 	{
 		//The resulting seek position would be negative.
 		if(pos<0) return EINVAL;
-		curthread->fdesc[fd]->fnode->offset = pos;
+		curproc->fdesc[fd]->fnode->offset = pos;
 	}
 	else if (whence==SEEK_CUR)
 	{
 		// new offset
-		pos += curthread->fdesc[fd]->fnode->offset;
+		pos += curproc->fdesc[fd]->fnode->offset;
 		//The resulting seek position would be negative.
 		if(pos<0) return EINVAL;
-		curthread->fdesc[fd]->fnode->offset = pos;
+		curproc->fdesc[fd]->fnode->offset = pos;
 	}
 	else if (whence==SEEK_END)
 	{
 		// new offset
 		pos += stat_ptr->st_size;
 		if(pos<0) return EINVAL;
-		curthread->fdesc[fd]->fnode->offset = pos;		
+		curproc->fdesc[fd]->fnode->offset = pos;		
 	}
 	kfree(stat_ptr);
 	//Assign return value
-	*retval = curthread->fdesc[fd]->fnode->offset;
-	lock_release(curthread->fdesc[fd]->fnode->filelock);
+	*retval = curproc->fdesc[fd]->fnode->offset;
+	lock_release(curproc->fdesc[fd]->fnode->filelock);
 
 	return 0;
 }
