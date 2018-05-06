@@ -78,6 +78,9 @@ struct proc {
 /* This is the process structure for the kernel and for kernel-only threads. */
 extern struct proc *kproc;
 
+struct proc *
+proc_create(const char *name);
+
 /* Call once during system startup to allocate data structures. */
 void proc_bootstrap(void);
 

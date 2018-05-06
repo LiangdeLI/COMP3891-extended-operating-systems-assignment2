@@ -9,6 +9,7 @@
  * Contains some file-related maximum length constants
  */
 #include <limits.h>
+#include <mips/trapframe.h>
 
 
 /*
@@ -44,5 +45,6 @@ int sys_dup2(int old_handle, int new_handle, int32_t* retval);
 
 int sys_lseek(int fd, off_t pos, int whence, off_t* retval);
 
+int sys_fork(struct trapframe* tf, pid_t * ret_pid);
 
 #endif /* _FILE_H_ */
