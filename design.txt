@@ -104,3 +104,5 @@ IN void enter_forked_process(void *tf, unsigned long addr);
 
 We have a global variable struct proc_info * proc_info_list. It is a linked-list, the list will store all information of pid and the process it belongs to.
 We add pid value to the struct proc, to store the information of pid for each process. We add childthread, it is a pointer to the thread it had just created, so it can track the child's pid when return from getpid.
+
+The only problem we haven't solved in our system is that after fork, the child and parent may going to print to terminal at the same time. As user level printf may split the whole string and print it in serveral times, in which several chars each time. This race condition makes the print out in the terminal unreadable.(i.e. "abc" + "xyz" = "axbycz") We have a deep thought on this point, but the locks in each entry of open file table cannot stop this error.
