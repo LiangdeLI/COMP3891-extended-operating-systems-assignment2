@@ -114,6 +114,7 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval)
 	// try to call vfs_open to open the file
 	res = vfs_open((char*) f, flag, mode, &vNode);
 	if (res){
+		kfree(f);
 		return res;
 	}
 
@@ -126,6 +127,7 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval)
 
 	//Connect the file descriptor to open_file_node
 	curthread->fdesc[fd]->fnode = &ofTable[i];
+	kfree(f);
 	*retval = fd;
 
 	return 0;
@@ -202,7 +204,7 @@ int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
 	res = VOP_READ(curr_ofn->vNode, &u);
 
 	if(res) {
-		//kfree(kbuf);
+		kfree(kbuf);
 		lock_release(curthread->fdesc[handle]->fnode->filelock);
 		*retval = -1;
 		return res;
@@ -213,7 +215,7 @@ int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
 		curr_ofn->offset = u.uio_offset;
 		lock_release(curthread->fdesc[handle]->fnode->filelock);
 		*retval = len - u.uio_resid;
-		//kfree(kbuf);
+		kfree(kbuf);
 		return 0;
 	}
 }
