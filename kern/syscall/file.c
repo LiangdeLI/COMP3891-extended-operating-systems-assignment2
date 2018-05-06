@@ -73,6 +73,7 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval)
 	int i;
 	struct vnode* vNode = NULL;
 	char *f = (char*)kmalloc(sizeof(char)*PATH_MAX);
+	KASSERT(f != NULL);
 	size_t len;
 
 	//if the file is NULL, there is no such file.
@@ -96,6 +97,7 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval)
 	}
 
 	curthread->fdesc[fd] = kmalloc(sizeof(struct fd_table));
+	KASSERT(curthread->fdesc[fd] != NULL);
 
 	//if the file decriptor table is null, it means: "Bad memory reference"?
 	if(curthread->fdesc[fd] == NULL){
@@ -110,19 +112,17 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval)
 	}
 
 	// try to call vfs_open to open the file
-	//if (res = vfs_open((char*) file, flag, mode, &vNode)){
-	res = vfs_open((char*) file, flag, mode, &vNode);
+	res = vfs_open((char*) f, flag, mode, &vNode);
 	if (res){
 		return res;
 	}
 
 	//Update the information in the open file node
 	ofTable[i].offset = 0;
-	ofTable[i].refCount++;	
+	ofTable[i].refCount=1;	
 	ofTable[i].flags = flag;
 	ofTable[i].vNode = vNode;
 	ofTable[i].filelock = lock_create("alock");
-	//ofTable[i].refcount++;
 
 	//Connect the file descriptor to open_file_node
 	curthread->fdesc[fd]->fnode = &ofTable[i];
