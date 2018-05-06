@@ -14,6 +14,7 @@
 #include <vnode.h>
 #include <file.h>
 #include <syscall.h>
+#include <stat.h>
 #include <copyinout.h>
 
 /*
@@ -315,7 +316,56 @@ int sys_dup2(int old_handle, int new_handle, int32_t* retval)
 	return 0;
 }
 
+int sys_lseek(int fd, off_t pos, int whence, off_t* retval)
+{
+	//fd is not a valid file handle.
+	if(curthread->fdesc[fd] == NULL || fd < 0 || fd >= OPEN_MAX)
+	{
+		return EBADF;
+	}
 
+	//fd refers to an object which does not support seeking
+	if(!VOP_ISSEEKABLE(curthread->fdesc[fd]->fnode->vNode))
+	{
+		return ESPIPE;
+	}
+
+	//whence is invalid.
+	if(whence!=SEEK_SET && whence!=SEEK_CUR && whence!=SEEK_END)
+	{
+		return EINVAL;
+	}
+	
+	struct stat * stat_ptr = kmalloc(sizeof(struct stat));
+	VOP_STAT(curthread->fdesc[fd]->fnode->vNode, stat_ptr);
+
+	if(whence==SEEK_SET)
+	{
+		//The resulting seek position would be negative.
+		if(pos<0) return EINVAL;
+		curthread->fdesc[fd]->fnode->offset = pos;
+	}
+	else if (whence==SEEK_CUR)
+	{
+		// new offset
+		pos += curthread->fdesc[fd]->fnode->offset;
+		//The resulting seek position would be negative.
+		if(pos<0) return EINVAL;
+		curthread->fdesc[fd]->fnode->offset = pos;
+	}
+	else if (whence==SEEK_END)
+	{
+		// new offset
+		pos += stat_ptr->st_size;
+		if(pos<0) return EINVAL;
+		curthread->fdesc[fd]->fnode->offset = pos;		
+	}
+	kfree(stat_ptr);
+	//Assign return value
+	*retval = curthread->fdesc[fd]->fnode->offset;
+
+	return 0;
+}
 
 
 //****************************
