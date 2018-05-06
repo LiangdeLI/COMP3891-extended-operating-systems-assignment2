@@ -316,10 +316,10 @@ int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
 //system duplicate2 implementation
 int sys_dup2(int old_handle, int new_handle, int32_t* retval)
 {
-	int res;
 	struct openFile* old_ofn;
+	struct openFile* new_ofn;
 	if(curthread->fdesc[old_handle] == NULL){
-		return ENFILE;	
+		return EBADF;	
 	}
 	
 	if((old_handle < 0 || old_handle >= OPEN_MAX) || (new_handle < 0 || new_handle >= OPEN_MAX)){
@@ -334,22 +334,29 @@ int sys_dup2(int old_handle, int new_handle, int32_t* retval)
 
 	//Not sure for what we should if it is not null
 	if(curthread->fdesc[new_handle] != NULL){
-		sys_close(new_handle,&res);
-		if(res){
-			return res;		
+		//Acquire lock
+		new_ofn = curthread->fdesc[new_handle]->fnode;
+		lock_acquire(new_ofn->filelock);
+		new_ofn->refCount--;
+		//Release lock
+		lock_release(new_ofn->filelock);
+		if(new_ofn->refCount == 0) {
+			vfs_close(new_ofn->vNode);
+			//destroy lock
+		    lock_destroy(new_ofn->filelock);
 		}
-	}else{
-		old_ofn = curthread->fdesc[old_handle]->fnode;
-		curthread->fdesc[new_handle]->fnode = old_ofn;
-		
-		lock_acquire(curthread->fdesc[old_handle]->fnode->filelock);
-		old_ofn->refCount++;
-		lock_release(curthread->fdesc[old_handle]->fnode->filelock);
-
-		*retval = new_handle;
-		return 0;
 	}
+	
+	old_ofn = curthread->fdesc[old_handle]->fnode;
+	curthread->fdesc[new_handle]->fnode = old_ofn;
+	
+	lock_acquire(curthread->fdesc[old_handle]->fnode->filelock);
+	old_ofn->refCount++;
+	lock_release(curthread->fdesc[old_handle]->fnode->filelock);
+
+	*retval = new_handle;
 	return 0;
+
 }
 
 int sys_lseek(int fd, off_t pos, int whence, off_t* retval)
