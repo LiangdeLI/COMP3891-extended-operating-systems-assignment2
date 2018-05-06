@@ -253,13 +253,14 @@ int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
 	//
 	void* kbuf = kmalloc(sizeof(*buf) * len);
 	if(kbuf == NULL) return EFAULT;
-	copyin((const_userptr_t) buf, kbuf, len);
+	size_t got;
+	copyinstr((const_userptr_t) buf, (char*)kbuf, len, &got);
 	//
 	
 
 	//Configuration
-	iov.iov_ubase = (userptr_t)buf;
-	iov.iov_len = len;
+	iov.iov_ubase = (void*)kbuf;
+	iov.iov_len = got;
 
 	// if(handle!=1 && handle!=2) kprintf("here1\n");
 	lock_acquire(curthread->fdesc[handle]->fnode->filelock);
@@ -269,8 +270,8 @@ int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
 	u.uio_iovcnt = 1;
 	u.uio_offset = curr_ofn->offset;
 
-	u.uio_resid = len;
-	u.uio_segflg = UIO_USERSPACE;
+	u.uio_resid = got;
+	u.uio_segflg = UIO_SYSSPACE;
 	u.uio_rw = UIO_WRITE;
 
 	//u.uio_space = curthread->t_addrspace;
@@ -308,7 +309,7 @@ int sys_dup2(int old_handle, int new_handle, int32_t* retval)
 	}
 	
 	if((old_handle < 0 || old_handle >= OPEN_MAX) || (new_handle < 0 || new_handle >= OPEN_MAX)){
-		return EBADF
+		return EBADF;
 	}
 
 	if(old_handle == new_handle){
@@ -323,16 +324,17 @@ int sys_dup2(int old_handle, int new_handle, int32_t* retval)
 			return res;		
 		}
 	}else{
-		old_ofn = curthread->fdesc[old_handle] = fnode;
+		old_ofn = curthread->fdesc[old_handle]->fnode;
 		curthread->fdesc[new_handle]->fnode = old_ofn;
 		
 		lock_acquire(curthread->fdesc[old_handle]->fnode->filelock);
-		curr_ofn->refCount++;
+		old_ofn->refCount++;
 		lock_release(curthread->fdesc[old_handle]->fnode->filelock);
 
 		*retval = new_handle;
 		return 0;
 	}
+	
 }
 
 
