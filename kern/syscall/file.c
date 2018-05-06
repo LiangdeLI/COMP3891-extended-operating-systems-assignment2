@@ -373,8 +373,10 @@ int sys_lseek(int fd, off_t pos, int whence, off_t* retval)
 
 int sys_fork(struct trapframe *tf, pid_t * ret_pid)
 {
-	const char * name = "kid";
-	int thread_fork(name, NULL,
+	const char * thread_name = "kid_thread";
+	const char * proc_name = "new_process";
+	struct proc * new_process = proc_create(proc_name);
+	int thread_fork(name, new_process,
 	    void (*entrypoint)(void *data1, unsigned long data2),
 	    void *data1, unsigned long data2)
 
