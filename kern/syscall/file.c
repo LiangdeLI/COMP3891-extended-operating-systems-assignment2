@@ -334,7 +334,6 @@ int sys_dup2(int old_handle, int new_handle, int32_t* retval)
 		*retval = new_handle;
 		return 0;
 	}
-	
 }
 
 
