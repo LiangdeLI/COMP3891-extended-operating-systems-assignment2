@@ -124,7 +124,7 @@ syscall(struct trapframe *tf)
 		err = sys_read((int)tf->tf_a0, (void *)tf->tf_a1, (size_t)tf->tf_a2, &retval);
 		break;
 		case SYS_dup2:
-		err = sys_dup2((int)tf->tf_a0, (void *)tf->tf_a1, &retval);
+		err = sys_dup2((int)tf->tf_a0, (int)tf->tf_a1, &retval);
 		break;
 			
 
