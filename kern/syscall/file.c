@@ -357,23 +357,30 @@ int sys_lseek(int fd, off_t pos, int whence, off_t* retval)
 	//fd is not a valid file handle.
 	if(curthread->fdesc[fd] == NULL || fd < 0 || fd >= OPEN_MAX)
 	{
+		*retval = -1;
 		return EBADF;
 	}
 
 	//fd refers to an object which does not support seeking
 	if(!VOP_ISSEEKABLE(curthread->fdesc[fd]->fnode->vNode))
 	{
+		*retval = -1;
 		return ESPIPE;
 	}
 
 	//whence is invalid.
 	if(whence!=SEEK_SET && whence!=SEEK_CUR && whence!=SEEK_END)
 	{
+		*retval = -1;
 		return EINVAL;
 	}
 	
 	struct stat * stat_ptr = kmalloc(sizeof(struct stat));
 	VOP_STAT(curthread->fdesc[fd]->fnode->vNode, stat_ptr);
+
+	//Acqurie lock
+	lock_acquire(curthread->fdesc[fd]->fnode->filelock);
+	
 
 	if(whence==SEEK_SET)
 	{
@@ -399,6 +406,7 @@ int sys_lseek(int fd, off_t pos, int whence, off_t* retval)
 	kfree(stat_ptr);
 	//Assign return value
 	*retval = curthread->fdesc[fd]->fnode->offset;
+	lock_release(curthread->fdesc[fd]->fnode->filelock);
 
 	return 0;
 }
