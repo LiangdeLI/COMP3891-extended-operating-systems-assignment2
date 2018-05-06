@@ -190,9 +190,18 @@ int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
 //int sys_read(int handle, void * buf, size_t len) {
 
 	if(handle < 0 || handle >= OPEN_MAX || curthread->fdesc[handle] == NULL){
+		*retval = -1;
 		return EBADF;	
 	}
 	
+	if(!(curthread->fdesc[handle]->fnode->flags != O_RDONLY || curthread->fdesc[handle]->fnode	->flags != O_RDWR)){
+		*retval = -1;
+		return EINVAL;	
+	}
+
+
+
+
 	int res;
 	struct uio u;
 	struct iovec iov;
@@ -236,9 +245,16 @@ int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
 //int sys_write(int handle, void * buf, size_t len) {
 
 	if(handle < 0 || handle >= OPEN_MAX || curthread->fdesc[handle] == NULL){
+		*retval = -1;
 		return EBADF;	
 	}
 	
+	if(!(curthread->fdesc[handle]->fnode->flags != O_WRONLY || curthread->fdesc[handle]->fnode->flags != O_RDWR)){
+		*retval = -1;
+		return EINVAL;	
+	}
+
+
 
 	int res;
 	struct uio u;
