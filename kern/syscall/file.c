@@ -156,7 +156,7 @@ int sys_close(int handle, int32_t * retval) {
 
 	if(curr_ofn->refCount == 0) {
 		vfs_close(curr_ofn->vNode);
-		//Destroy lock
+		//Release and Destroy lock
 		lock_release(curr_ofn->filelock);
 	    lock_destroy(curr_ofn->filelock);
 	    *retval = 0;
@@ -189,12 +189,13 @@ int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
 
 	//Get the open file node
 	struct openFile* curr_ofn = curthread->fdesc[handle]->fnode;
-
-	//Configuration
+	
+	void* kbuf = kmalloc(sizeof(*buf) * len);
+	KASSERT(kbuf != NULL);
 
 	lock_acquire(curthread->fdesc[handle]->fnode->filelock);
-
-	uio_kinit(&iov, &u, (void*)buf, len, curr_ofn->offset, UIO_READ);
+	//Configuration
+	uio_kinit(&iov, &u, (void*)kbuf, len, curr_ofn->offset, UIO_READ);
 
 	//Called the VOP_READ function
 	//if(res = VOP_READ(curr_ofn->vNode, &u)) {
@@ -206,12 +207,14 @@ int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
 		*retval = -1;
 		return res;
 	}else{
+		// copy user buffer to kernel buffer, and check
+		size_t got;
+		copyoutstr((char*)kbuf, (userptr_t) buf, len, &got);
 		curr_ofn->offset = u.uio_offset;
 		lock_release(curthread->fdesc[handle]->fnode->filelock);
 		*retval = len - u.uio_resid;
 		//kfree(kbuf);
 		return 0;
-
 	}
 }
 
