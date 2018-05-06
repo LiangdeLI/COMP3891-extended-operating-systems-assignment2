@@ -63,7 +63,6 @@ void init_fdesc(void){
 
  	return;
 
-
 }
 
 //System open implementation

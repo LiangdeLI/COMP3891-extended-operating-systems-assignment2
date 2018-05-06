@@ -108,8 +108,7 @@ struct thread {
 	 */
 
 	/* add more here as needed */
-	struct fd_table* fdesc[OPEN_MAX];
-	struct addrspace* t_addrspace;		
+	struct fd_table* fdesc[OPEN_MAX];	
 };
 
 /*

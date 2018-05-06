@@ -2,10 +2,12 @@ Place your design document here.
 
 =================================================================
 void init_fdesc(void);
+Init stdout and stderr, link them to console "con:", create struct openFile for them.
 
 
 =================================================================
 int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval);
+
 
 
 =================================================================
