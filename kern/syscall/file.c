@@ -24,8 +24,8 @@
 
 
 //Add************************** 
-//int open(const char *filename, int flags, ...);
 
+// global OPT
 struct openFile ofTable[OPEN_MAX];
 
 // Initialize the file descriptor table
@@ -49,12 +49,14 @@ void init_fdesc(void){
  	curproc->fdesc[2]->fnode = kmalloc(sizeof(struct openFile));
  	KASSERT(curproc->fdesc[2]->fnode != NULL);
 
+ 	// set struct openFile for stdout
  	curproc->fdesc[1]->fnode->vNode = v1;
 	curproc->fdesc[1]->fnode->offset = 0;
  	curproc->fdesc[1]->fnode->flags = O_WRONLY;
  	curproc->fdesc[1]->fnode->refCount = 1;
  	curproc->fdesc[1]->fnode->filelock = lock_create("stdout_lock");
 
+ 	// set struct openFile for stderr
  	curproc->fdesc[2]->fnode->vNode = v2;
 	curproc->fdesc[2]->fnode->offset = 0;
  	curproc->fdesc[2]->fnode->flags = O_WRONLY;
@@ -72,8 +74,10 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval)
 	int fd = 3;
 	int i;
 	struct vnode* vNode = NULL;
+	// kmalloc a buffer in kernel space
 	char *f = (char*)kmalloc(sizeof(char)*PATH_MAX);
 	KASSERT(f != NULL);
+	
 	size_t len;
 
 	//if the file is NULL, there is no such file.
@@ -85,12 +89,11 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval)
 		return ENOMEM;	
 	}	
 
-	//Copy the string to kernel space.
+	//Check and copy the user-level string to kernel space.
 	copyinstr(file, f, PATH_MAX, &len);
 	
 	//Find available place in file descriptor table		
-	for(fd = 3; curproc->fdesc[fd] != NULL; fd++){
-		
+	for(fd = 3; curproc->fdesc[fd] != NULL; fd++){	
 		if(fd >= OPEN_MAX){
 			return ENFILE;		
 		}
@@ -127,7 +130,11 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval)
 
 	//Connect the file descriptor to open_file_node
 	curproc->fdesc[fd]->fnode = &ofTable[i];
+	
+	// free kernel space buffer
 	kfree(f);
+	
+	//set return value of this syscall
 	*retval = fd;
 
 	return 0;
@@ -135,7 +142,7 @@ int sys_open(const_userptr_t file, int flag, mode_t mode, int32_t* retval)
 
 //System close implementation
 int sys_close(int handle, int32_t * retval) {
-	
+	// fd is not a valid file handle.
 	if(handle < 0 || handle >= OPEN_MAX || curproc->fdesc[handle] == NULL){
 		*retval = -1;
 		return EBADF;	
@@ -154,8 +161,11 @@ int sys_close(int handle, int32_t * retval) {
 	
 	//Acquire lock
 	lock_acquire(curr_ofn->filelock);
+	
+	// decrement the reference count of this openFile
 	curr_ofn->refCount--;
 
+	// if no more fd refer to this openFile
 	if(curr_ofn->refCount == 0) {
 		vfs_close(curr_ofn->vNode);
 		//Release and Destroy lock
@@ -174,15 +184,16 @@ int sys_close(int handle, int32_t * retval) {
 
 //System read implementation
 int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
-
+	//fd is not a valid file descriptor
 	if(handle < 0 || handle >= OPEN_MAX || curproc->fdesc[handle] == NULL){
 		*retval = -1;
 		return EBADF;	
 	}
 	
+	// fd was not opened for reading
 	if(!(curproc->fdesc[handle]->fnode->flags != O_RDONLY || curproc->fdesc[handle]->fnode	->flags != O_RDWR)){
 		*retval = -1;
-		return EINVAL;	
+		return EBADF;	
 	}
 
 	int res;
@@ -192,11 +203,13 @@ int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
 	//Get the open file node
 	struct openFile* curr_ofn = curproc->fdesc[handle]->fnode;
 	
+	// kmalloc a kernel level buffer
 	void* kbuf = kmalloc(sizeof(*buf) * len);
 	KASSERT(kbuf != NULL);
 
 	lock_acquire(curproc->fdesc[handle]->fnode->filelock);
-	//Configuration
+	
+	//Configuration, init value
 	uio_kinit(&iov, &u, (void*)kbuf, len, curr_ofn->offset, UIO_READ);
 
 	//Called the VOP_READ function
@@ -213,6 +226,7 @@ int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
 		copyoutstr((char*)kbuf, (userptr_t) buf, len, &got);
 		curr_ofn->offset = u.uio_offset;
 		lock_release(curproc->fdesc[handle]->fnode->filelock);
+		// length been read
 		*retval = len - u.uio_resid;
 		kfree(kbuf);
 		return 0;
@@ -221,12 +235,12 @@ int sys_read(int handle, void * buf, size_t len, int32_t * retval) {
 
 //System write implementation
 int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
-
+	// fd is not a valid file descriptor
 	if(handle < 0 || handle >= OPEN_MAX || curproc->fdesc[handle] == NULL){
 		*retval = -1;
 		return EBADF;	
 	}
-	
+	// fd was not opened for writing
 	if(!(curproc->fdesc[handle]->fnode->flags != O_WRONLY || curproc->fdesc[handle]->fnode->flags != O_RDWR)){
 		*retval = -1;
 		return EINVAL;	
@@ -239,12 +253,14 @@ int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
 	//Get the open file node
 	struct openFile* curr_ofn = curproc->fdesc[handle]->fnode;
 	
-	//
+	// kmalloc a kernel level buffer
 	void* kbuf = kmalloc(sizeof(*buf) * len);
 	if(kbuf == NULL) return EFAULT;
+	
 	size_t got;
+	// check and copy user level buffer to kernel level's
 	copyinstr((const_userptr_t) buf, (char*)kbuf, len, &got);
-	//
+	
 	lock_acquire(curproc->fdesc[handle]->fnode->filelock);	
     uio_kinit(&iov, &u, (void*)buf, len, curr_ofn->offset, UIO_WRITE);
 
@@ -258,10 +274,10 @@ int sys_write(int handle, void * buf, size_t len, int32_t * retval) {
 	}else{
 		curr_ofn->offset = u.uio_offset;
 		lock_release(curproc->fdesc[handle]->fnode->filelock);
+		//length been written
 		*retval = len - u.uio_resid;
 		kfree(kbuf);
-		return 0;
-		
+		return 0;		
 	}
 }
 
@@ -271,15 +287,18 @@ int sys_dup2(int old_handle, int new_handle, int32_t* retval)
 {
 	struct openFile* old_ofn;
 	struct openFile* new_ofn;
+
+	// oldfd is not a valid file handle
 	if(curproc->fdesc[old_handle] == NULL){
 		return EBADF;	
 	}
-	
+	// oldfd is not a valid file handle, or newfd is a value that cannot be a valid file handle.
 	if((old_handle < 0 || old_handle >= OPEN_MAX) || (new_handle < 0 || new_handle >= OPEN_MAX)){
 		*retval = -1;
 		return EBADF;
 	}
 
+	// dup2 itself
 	if(old_handle == new_handle){
 		*retval = old_handle;
 		return 0;
@@ -287,8 +306,8 @@ int sys_dup2(int old_handle, int new_handle, int32_t* retval)
 
 	//Check whether the destination in file descriptor table already exists
 	if(curproc->fdesc[new_handle] != NULL){
-		//Acquire lock
 		new_ofn = curproc->fdesc[new_handle]->fnode;
+		//Acquire lock
 		lock_acquire(new_ofn->filelock);
 		new_ofn->refCount--;
 		//Release lock
